@@ -1,0 +1,51 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+## Exercise 1
+
+The file "dat_contrast.csv" in the folder "data" contains the results of a participant in a detection experiment. On each trial, the participant needs to say "yes" if she can see the stimulus and "no" if she cannot see the stimulus. 
+
+Plot the proportion of detections as a function of contrast and fit a logistic psychometric function.
+
+Which is the estimated value of the slope?
+
+Looking at the plot, for which contrast the proportion of detection is about 50%. 
+
+
+## Exercise 2
+
+An experiment measures the reaction time in response to stimuli that can have two sizes (small and large) and different levels of contrast (the file "dat_rt.csv" is located in the folder data). 
+
+Plot the regression line for the reaction time as a function of contrast for each size considering that the slope is the same for both sizes or that that slopes are different. 
+
+
+Is there evidence that the slopes are different for the two sizes? 
+
+
+## Exercise 3
+
+This data frame represents fake data collected from 10 subjects on sleep duration (in hours) and mental well-being scores (on a scale of 1-5).
+
+```{r}
+sleep_data <- tibble(Subject = 1:10,
+                     Sleep_Duration = c(7.2, 8.5, 6.8, 7.5, 9.1, 5.3, 6.4, 7.9, 8.2, 6.1),
+                     Mental_Wellbeing = c(3, 4, 2, 3, 5, 1, 2, 4, 4, 2))
+```
+
+  -   Use simple linear regression to examine the relationship between sleep duration and mental well-being.
+  -     Report the coefficients of the line of best fit.
+  -   Interpret the results in terms of the strength and direction of the relationship between sleep duration and mental well-being.
+  -   Create a scatter plot of the data, and add the line of best fit to the plot.
+
+
+## Exercise 4
+
+The file "dat_contrast_drug.csv" in the folder "data" contains the results of a participant in a detection experiment. On each trial, the participant says "yes" if she can see the stimulus and "no" if she cannot see the stimulus. The participant perform a block of trials under placebo and a block of trials under some drug. Fit a psychometric function model for each block in which the intercept is considered different, but the slope is the same. 
+
+
+
+
+
+

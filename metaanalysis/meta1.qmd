@@ -1,0 +1,945 @@
+---
+title: "Basics of statistics for meta-analysis"
+format: 
+  revealjs:
+    smaller: false
+    incremental: true
+    scrollable: true
+editor: visual
+---
+
+## The problem
+
+-   According **Study 1**, *Reducin* reduces blood presure 5.3 mm Hg.
+
+-   According **Study 2**, *Reducin* reduces blood presure 10.1 mm Hg.
+
+-   According **Study 3**, *Reducin* increases blood presure 2.9 mm Hg.
+
+-   ...
+
+. . .
+
+**Which is the effect of taking *Reducin* on blood pressure?**
+
+. . .
+
+<br>
+
+We will see that calculating an effect size (with its standard error) it is easy to combine the evidence of the studies.
+
+## 
+
+**Study 1**
+
+. . .
+
+Blood pressure of 15 people taking *Reducin*
+
+```{r}
+library(tidyverse)
+set.seed(999)
+n_samples <- 5 # 5000
+
+y_drug <- rnorm(15, mean = 140, sd = 30)
+```
+
+```{r,echo=TRUE}
+y_drug
+```
+
+. . .
+
+Blood pressure of 20 people taking placebo
+
+```{r}
+y_control <- rnorm(20, mean = 160, sd = 30)
+```
+
+```{r, echo=TRUE}
+y_control
+```
+
+. . .
+
+<br>
+
+```{r, echo=TRUE, fig.width=3, fig.height=3, fig.align='center'}
+bind_rows(
+  tibble(y = y_control, cond = "control"),
+  tibble(y = y_drug, cond = "drug")) |> 
+  ggplot(aes(cond, y)) +
+  geom_point()
+```
+
+. . .
+
+### Hypothesis testing
+
+$$H_0: \mu_{drug} = \mu_{control} \, \, \, \, \, \, H_1: \mu_{drug} \neq \mu_{control}$$
+
+. . .
+
+*How can I perform this hypothesis test?*
+
+. . .
+
+```{r, echo=TRUE}
+t.test(y_drug, y_control)
+```
+
+<br>
+
+. . .
+
+*Which is the other fundamental problem in statistics?*
+
+. . .
+
+##### Estimation
+
+. . .
+
+*Which is a good estimator of* $\mu_{control}?$
+
+. . .
+
+```{r, echo=TRUE}
+mean(y_control)
+```
+
+. . .
+
+*Which is a good estimator of* $\mu_{drug}?$
+
+. . .
+
+```{r, echo=TRUE}
+mean(y_drug)
+```
+
+. . .
+
+*Which is a good estimator of* $\mu_{control} - \mu_{drug}?$
+
+. . .
+
+```{r, echo=TRUE}
+mean(y_control) - mean(y_drug)
+```
+
+. . .
+
+A comparison of two variables like this is called **effect size** (unstandardized)
+
+## 
+
+**Unstandardized effect sizes** are recommended when the units of measurement have practical significance.
+
+. . .
+
+But, **standardized effect sizes** (they don't have units) are also interesting because:
+
+-   Allow the comparison of different effects: drug for reducing blood pressure with drug to reduce fever.
+
+-   Meta-analysis tecniques use standardized effect sizes.
+
+. . .
+
+<br>
+
+There are hundreds of standarized effect sizes organized in families:
+
+-   Correlation family: pearson's $r$, ...
+
+-   Difference family: Cohen's $d$, Hedges' $g$, ...
+
+## Cohen's $d$
+
+. . .
+
+$$d = \frac{\overline{y}_{control} - \overline{y}_{drug}}{s}$$
+
+How many standard deviations are the means separated.
+
+. . .
+
+<br>
+
+**Assuming different variance for the two groups (not common)**
+
+$s$ is the standard deviation of the control group
+
+. . .
+
+<br>
+
+**Assuming same variance for the two groups (common)**
+
+$s$ is a weighted average of the standard deviations (pooled standard deviation)
+
+. . .
+
+$$s = \sqrt{\frac{(n_{control} -1) s_{control}^2 + (n_{drug} -1) s_{drug}^2 }{n_{control} + n_{drug} - 2}}$$
+
+## Calculating Cohen's $d$
+
+. . .
+
+```{r,echo=TRUE}
+y_drug
+```
+
+```{r, echo=TRUE}
+y_control
+```
+
+. . .
+
+<br>
+
+```{r,echo=TRUE}
+n_drug <- length(y_drug)
+n_drug
+```
+
+```{r,echo=TRUE}
+n_control <- length(y_control)
+n_control
+```
+
+. . .
+
+<br>
+
+```{r,echo=TRUE}
+m_drug <- mean(y_drug)
+m_drug
+```
+
+```{r,echo=TRUE}
+m_control <- mean(y_control)
+m_control
+```
+
+. . .
+
+<br>
+
+```{r,echo=TRUE}
+sd_drug <- sd(y_drug)
+sd_drug
+```
+
+```{r,echo=TRUE}
+sd_control <- sd(y_control)
+sd_control
+```
+
+. . .
+
+```{r,echo=TRUE}
+sd_pooled <- sqrt( ((n_control - 1) * sd_control^2 + (n_drug - 1) * sd_drug^2) / (n_control + n_drug - 2))
+sd_pooled
+```
+
+. . .
+
+Let's create a function
+
+```{r,echo=TRUE}
+calculate_sd_pooled <- function(n_1, n_2, sd_1, sd_2) {
+  sqrt( ((n_1 - 1) * sd_1^2 + (n_2 - 1) * sd_2^2) / (n_1 + n_2 - 2))
+}
+
+```
+
+. . .
+
+<br>
+
+```{r,echo=TRUE}
+calculate_sd_pooled(n_control, n_drug, sd_control, sd_drug)
+```
+
+. . .
+
+<br>
+
+```{r,echo=TRUE}
+d <- (m_control - m_drug) / sd_pooled
+d
+```
+
+## Calculating Cohen's $d$ using `esc`
+
+```{r,echo=TRUE}
+library(esc)
+
+d_esc <- esc_mean_sd(grp1m = m_control, grp2m = m_drug, 
+            grp1sd = sd_control, grp2sd = sd_drug, 
+            grp1n = n_control, grp2n = n_drug)
+
+d_esc
+```
+
+<br>
+
+. . .
+
+```{r,echo=TRUE}
+d_esc$es
+```
+
+. . .
+
+**Creating a function**
+
+```{r,echo=TRUE}
+calculate_cohen <- function(y_1, y_2) {
+  n_1 <- length(y_1)
+  n_2 <- length(y_2)
+  
+  m_1 <- mean(y_1)
+  m_2 <- mean(y_2)
+  
+  sd_1 <- sd(y_1)
+  sd_2 <- sd(y_2) 
+  
+  d <- esc_mean_sd(grp1m = m_1, grp2m = m_2, 
+            grp1sd = sd_1, grp2sd = sd_2, 
+            grp1n = n_1, grp2n = n_2)
+  
+  d$es
+  
+}
+
+```
+
+<br>
+
+. . .
+
+```{r,echo=TRUE}
+d_esc <- calculate_cohen(y_control, y_drug)
+d_esc
+```
+
+##  {.smaller}
+
+| Qualitative descriptors |  d   |              Example              |
+|:-----------------------:|:----:|:---------------------------------:|
+|       Very small        | 0.01 |                                   |
+|          Small          | 0.2  |     IQ difference birth order     |
+|         Medium          | 0.5  |    Spatial suppression in Scz     |
+|          Large          | 0.8  |  Contrast & Motion sens. in Scz?  |
+|       Very large        | 1.2  |                                   |
+|          Huge           |  2   | Height differences (male, female) |
+
+<br>
+
+```{r, fig.width=6, fig.height=1.25}
+crossing(d = c(0.01, .2, .5, 0.8,  1.2, 2), 
+         x = seq(-3, 5, .01)) |> 
+  mutate(y_control = dnorm(x, mean = 0, sd = 1),
+         y_exp = dnorm(x, mean = d, sd = 1)) |> 
+  ggplot() + 
+  facet_wrap(~ d, nrow = 1) +
+  geom_line(aes(x = x, y = y_control)) +
+  geom_line(aes(x = x, y = y_exp)) +
+  theme_classic() +
+  theme(axis.line.y = element_blank(), 
+        axis.ticks = element_blank(),
+        axis.text = element_blank(), 
+        axis.title = element_blank())
+
+```
+
+## Hedges' $g$
+
+$$g = \left( 1- \frac{3}{4 (n_{control} + n_{drug}) - 9}\right) \frac{\overline{y}_{control} - \overline{y}_{drug}}{s}$$
+
+. . .
+
+$$g = \left( 1- \frac{3}{4 (n_{control} + n_{drug}) - 9}\right) d$$
+
+. . .
+
+For large n, $g = d$
+
+<br>
+
+. . .
+
+```{r,echo=TRUE}
+d
+```
+
+. . .
+
+```{r,echo=TRUE}
+g <- (1 - 4 / (4 * (n_control + n_drug) - 9)) * d # approximate
+g
+```
+
+. . .
+
+Using `esc`
+
+```{r,echo=TRUE}
+esc_mean_sd(grp1m = m_control, grp2m = m_drug, 
+            grp1sd = sd_control, grp2sd = sd_drug, 
+            grp1n = n_control, grp2n = n_drug, 
+            es.type = "g")
+```
+
+. . .
+
+The value is not exactly the same because the formula provided is an approximation.
+
+. . .
+
+**Creating a function**
+
+```{r,echo=TRUE}
+calculate_hedges <- function(y_1, y_2) {
+  n_1 <- length(y_1)
+  n_2 <- length(y_2)
+  
+  m_1 <- mean(y_1)
+  m_2 <- mean(y_2)
+  
+  sd_1 <- sd(y_1)
+  sd_2 <- sd(y_2) 
+  
+  g <- esc_mean_sd(grp1m = m_1, grp2m = m_2, 
+            grp1sd = sd_1, grp2sd = sd_2, 
+            grp1n = n_1, grp2n = n_2, 
+            es.type = "g")
+  
+  g$es
+  
+}
+
+```
+
+. . .
+
+```{r,echo=TRUE}
+calculate_hedges(y_control, y_drug)
+```
+
+## Why $g$ is better than $d$?
+
+. . .
+
+What are we really doing?
+
+. . .
+
+Blood pressure is distributed normally
+
+-   with mean $\mu_{control}$ and standard deviation $\sigma$ for the drug group
+
+-   with mean $\mu_{drug}$ and standard deviation $\sigma$ for the placebo group
+
+. . .
+
+We define the population standardized mean difference as
+
+$$\theta = \frac{\mu_{control} - \mu_{drug}}{\sigma}$$
+
+. . .
+
+$d = \frac{\overline{y}_{control} - \overline{y}_{drug}}{s} \,\,$ is an estimator of $\theta$
+
+. . .
+
+$g = \left( 1- \frac{3}{4 (n_{control} + n_{drug}) - 9}\right) d \,\,$ is another estimator of $\theta$
+
+. . .
+
+(We can use the letter $d$ or $\hat{\theta}$; latin letters or the hat is used to refer to estimators)
+
+. . .
+
+<br>
+
+$d$ is good, but $g$ is better because is unbiased
+
+. . .
+
+$$bias = E[\hat{\theta}] - \theta$$
+
+. . .
+
+An estimator is unbiased when the average value is the same than the value of the parameter (for example, the mean is an unbiased estimator of the population mean).
+
+. . .
+
+<br>
+
+$g$ is better than $d$ because $E[g] - \theta$ is smaller than $E[d] - \theta$
+
+## 
+
+Let's perform some simulations to see this
+
+. . .
+
+```{r,echo=TRUE}
+sigma <- 30
+
+mu_control <- 160
+mu_drug <- 140
+```
+
+<br>
+
+. . .
+
+*How can I calculate the population effect size?*
+
+. . .
+
+```{r, echo=TRUE}
+theta <- (mu_control - mu_drug) / sigma
+theta
+```
+
+. . .
+
+<br>
+
+**Sample 1**
+
+```{r,echo=TRUE}
+y_drug_sample_1 <- rnorm(n_drug, mean = mu_drug, sd = sigma)
+y_drug_sample_1
+```
+
+. . .
+
+```{r,echo=TRUE}
+y_control_sample_1 <- rnorm(n_control, mean = mu_control, sd = sigma)
+y_control_sample_1
+```
+
+. . .
+
+*How can I estimate the population effect size from this sample?*
+
+. . .
+
+```{r,echo=TRUE}
+calculate_cohen(y_control_sample_1, y_drug_sample_1)
+```
+
+. . .
+
+```{r,echo=TRUE}
+calculate_hedges(y_control_sample_1, y_drug_sample_1)
+```
+
+. . .
+
+**Sample 2**
+
+```{r,echo=TRUE}
+y_drug_sample_2 <- rnorm(n_drug, mean = mu_drug, sd = sigma)
+y_drug_sample_2
+```
+
+. . .
+
+```{r,echo=TRUE}
+y_control_sample_2 <- rnorm(n_control, mean = mu_control, sd = sigma)
+y_control_sample_2
+```
+
+. . .
+
+```{r,echo=TRUE}
+calculate_cohen(y_control_sample_2, y_drug_sample_2)
+```
+
+```{r,echo=TRUE}
+calculate_hedges(y_control_sample_2, y_drug_sample_2)
+```
+
+## 
+
+`r n_samples` samples
+
+```{r,echo=FALSE}
+samples_drug <- tibble(sample = 1:n_samples) |> 
+  group_by(sample) |> 
+  summarise(y = rnorm(n_drug, mean = mu_drug, sd = sigma), 
+            .groups = "keep") |> 
+  mutate(cond = "drug")
+
+samples_control <- tibble(sample = 1:n_samples) |> 
+  group_by(sample) |> 
+  summarise(y = rnorm(n_control, mean = mu_control, sd = sigma), 
+            .groups = "keep") |> 
+  mutate(cond = "control")
+
+samples <- samples_drug |> 
+  bind_rows(samples_control)
+
+calculate_eff_size_from_tibble <- function(.data) {
+  y_control <- .data |> 
+    filter(cond == "control") |> 
+    pull("y")
+  
+  y_drug <- .data |> 
+    filter(cond == "drug") |> 
+    pull("y")
+  
+  d <- calculate_cohen(y_control, y_drug)
+  g <- calculate_hedges(y_control, y_drug)
+  
+  tibble(d, g)
+}
+
+distribution_eff_sizes <- samples |> 
+  group_by(sample) |> 
+  summarise(calculate_eff_size_from_tibble(cur_data()))
+
+```
+
+```{r,echo=FALSE, fig.width=8, fig.height=3}
+distribution_eff_sizes |> 
+  pivot_longer(c(d, g)) |> 
+  ggplot() +
+    facet_wrap(~ name, ncol = 1) + 
+  geom_histogram(aes(x = value), bins = 60) 
+```
+
+. . .
+
+Mean $d$ and $g$
+
+```{r}
+distribution_eff_sizes |> 
+  summarise(d = mean(d), g = mean(g))
+```
+
+## The code to perform the simulations
+
+```{r,echo=TRUE}
+samples_drug <- tibble(sample = 1:n_samples) |> 
+  group_by(sample) |> 
+  summarise(y = rnorm(n_drug, mean = mu_drug, sd = sigma), 
+            .groups = "keep") |> 
+  mutate(cond = "drug")
+
+samples_drug
+```
+
+. . .
+
+```{r, echo=TRUE}
+samples_control <- tibble(sample = 1:n_samples) |> 
+  group_by(sample) |> 
+  summarise(y = rnorm(n_control, mean = mu_control, sd = sigma), 
+            .groups = "keep") |> 
+  mutate(cond = "control")
+
+samples_control
+```
+
+. . .
+
+<br>
+
+```{r, echo=TRUE}
+samples <- samples_drug |> 
+  bind_rows(samples_control)
+
+samples
+```
+
+. . .
+
+<br>
+
+```{r,echo=TRUE}
+sample_1 <- samples |> 
+  filter(sample == 1)
+
+sample_1
+```
+
+. . .
+
+**A function that calculates** $d$ and $g$ for a given sample data frame
+
+```{r,echo=TRUE}
+calculate_eff_size_from_tibble <- function(data) {
+  y_control <- data |> 
+    filter(cond == "control") |> 
+    pull("y")
+  
+  y_drug <- data |> 
+    filter(cond == "drug") |> 
+    pull("y")
+  
+  d <- calculate_cohen(y_control, y_drug)
+  g <- calculate_hedges(y_control, y_drug)
+  
+  tibble(d, g)
+}
+```
+
+. . .
+
+<br>
+
+```{r,echo=TRUE}
+calculate_eff_size_from_tibble(sample_1)
+```
+
+. . .
+
+Estimating $d$ and $g$ for each sample
+
+```{r,echo=TRUE}
+distribution_eff_sizes <- samples |> 
+  group_by(sample) |> 
+  summarise(calculate_eff_size_from_tibble(cur_data()))
+
+distribution_eff_sizes
+```
+
+<br>
+
+. . .
+
+Mean $d$ and $g$
+
+```{r}
+distribution_eff_sizes |> 
+  summarise(d = mean(d), g = mean(g))
+```
+
+. . .
+
+<br>
+
+```{r,echo=TRUE}
+distribution_eff_sizes |> 
+  pivot_longer(c(d, g)) |> 
+  ggplot() +
+    facet_wrap(~ name, ncol = 1) + 
+  geom_histogram(aes(x = value), bins = 60) 
+```
+
+## Standard error
+
+. . .
+
+An statistic (estimator), like $d$ or $g$ is a random variable. It has a distribution of values.
+
+. . .
+
+The standard error of an statistic is the standard deviation of the statistic.
+
+. . .
+
+It provides a measure of how precise is the statistic (in our case, the statistic is the effect size).
+
+. . .
+
+```{r,echo=TRUE}
+distribution_eff_sizes
+```
+
+. . .
+
+```{r,echo=TRUE}
+distribution_eff_sizes |> 
+  summarise(mean_d = mean(d), mean_g = mean(g))
+```
+
+. . .
+
+```{r,echo=TRUE}
+distribution_eff_sizes |> 
+  summarise(mean_d = mean(d), mean_g = mean(g), 
+            se_d = sd(d), se_g = sd(g))
+```
+
+<br>
+
+. . .
+
+We were able to calculate $se(d)$ and $se(g)$ because we knew the populations means and variance.
+
+. . .
+
+We did it to understand the concept of bias, but we often do not have access to population parameters!
+
+. . .
+
+So, we cannot calculate $se$. We need to estimate $se$ from the data that we have.
+
+. . .
+
+There are 2 solutions.
+
+## Using simulation
+
+. . .
+
+We do not have the means and the standard deviation of the populations. So, we use their estimates.
+
+. . .
+
+Exercise
+
+## Using a formula
+
+. . .
+
+It could be demonstrated that one good estimate of the standard error of cohen's $d$ is
+
+$$\hat{se} (d) = \sqrt{\frac{n_1+n_2}{n_1n_2}+\frac{d^2}{2(n_1+n_2)}}$$
+
+. . .
+
+Let's suppose that our data is the sample 1
+
+```{r,echo=TRUE}
+distribution_eff_sizes
+```
+
+```{r,echo=TRUE}
+d_sample_1 <- distribution_eff_sizes |> 
+  filter(sample == 1) |> 
+  pull("d")
+
+d_sample_1
+```
+
+```{r,echo=TRUE}
+estimated_se <- sqrt((n_drug + n_control) / (n_drug * n_control) + d_sample_1^2 / (2*(n_control + n_drug)))
+
+estimated_se
+```
+
+. . .
+
+Let´s create a function
+
+```{r,echo=TRUE}
+calculate_d_se <- function(n_1, n_2, d) {
+  sqrt((n_2 + n_1) / (n_2 * n_1) + d^2 / (2*(n_1 + n_2)))
+}
+```
+
+. . .
+
+```{r,echo=TRUE}
+calculate_d_se(n_control, n_drug, d_sample_1)
+```
+
+. . .
+
+Using `esc`
+
+```{r,echo=TRUE}
+calculate_cohen <- function(y_1, y_2) {
+  n_1 <- length(y_1)
+  n_2 <- length(y_2)
+  
+  m_1 <- mean(y_1)
+  m_2 <- mean(y_2)
+  
+  sd_1 <- sd(y_1)
+  sd_2 <- sd(y_2) 
+  
+  d <- esc_mean_sd(grp1m = m_1, grp2m = m_2, 
+            grp1sd = sd_1, grp2sd = sd_2, 
+            grp1n = n_1, grp2n = n_2)
+  
+  d
+}
+```
+
+. . .
+
+<br>
+
+```{r,echo=TRUE}
+y_1 <- sample_1 |> 
+  filter(cond == "control") |> 
+  pull(y)
+
+y_2 <- sample_1 |> 
+  filter(cond == "drug") |> 
+  pull(y)
+
+calculate_cohen(y_1, y_2)
+```
+
+## Summary
+
+. . .
+
+$g$ is a measure of how different are the means of two groups
+
+. . .
+
+$g$ is large if the difference in means is large and the standard deviations are small
+
+. . .
+
+<br>
+
+**Calculation. We know the means and the standards deviations.**
+
+. . .
+
+```{r,eval=FALSE,echo=TRUE}
+esc_mean_sd(grp1m = mean_1, grp2m = mean_2, 
+            grp1sd = sd_1, grp2sd = sd_2, 
+            grp1n = n_1, grp2n = n_2, 
+            es.type = "g")
+```
+
+. . .
+
+<br>
+
+**Calculation. We have the raw data.**
+
+. . .
+
+Given the values for group 1 and the values for groups 2, we calculate the means, sds and ns and use the previous formula.
+
+. . .
+
+Or we use the formula that we have created:
+
+```{r,eval=FALSE,echo=TRUE}
+calculate_hedges <- function(y_1, y_2) {
+  n_1 <- length(y_1)
+  n_2 <- length(y_2)
+  
+  m_1 <- mean(y_1)
+  m_2 <- mean(y_2)
+  
+  sd_1 <- sd(y_1)
+  sd_2 <- sd(y_2) 
+  
+  g <- esc_mean_sd(grp1m = m_1, grp2m = m_2, 
+            grp1sd = sd_1, grp2sd = sd_2, 
+            grp1n = n_1, grp2n = n_2, 
+            es.type = "g")
+  
+  g
+  
+}
+
+```

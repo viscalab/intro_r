@@ -1,0 +1,73 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+## Exercise 1
+
+```{r}
+set.seed(99)
+
+dat_contrast <- crossing(sample = 1:20, contrast = seq(0, 4, .5)) |> 
+  rowwise() |> 
+  mutate(p = logistic_fun(contrast, c(-6, 3))) |> 
+  mutate(response = rbinom(1, size = 1, prob = p)) |> 
+  select(response, contrast) |> 
+  ungroup() |> 
+  sample_frac(1) |> 
+  mutate(response = if_else(response == 1, "yes", "no"))
+
+write_csv(dat_contrast, "data/dat_contrast.csv")
+```
+
+## Exercise 2
+
+```{r}
+set.seed(999)
+
+dat_rt <- crossing(samples = 1:50, size = c("small", "large"), contrast = seq(.2, 1, .2)) |> 
+  mutate(intercept = if_else(size == "small", 0.3, 0.32), 
+         slope = if_else(size == "small", 250, 285)) |> 
+  rowwise() |> 
+  mutate(rt = intercept + slope * contrast + rnorm(1, 0, 30))
+
+
+write_csv(dat_rt, "data/dat_rt.csv")
+```
+
+
+## Exercise 4
+
+```{r}
+dat_contrast_drug <- crossing(sample = 1:20, contrast = seq(0, 4, .5)) |> 
+  rowwise() |> 
+  mutate(p = logistic_fun(contrast, c(-6, 3))) |> 
+  mutate(response = rbinom(1, size = 1, prob = p)) |> 
+  select(response, contrast) |> 
+  ungroup() |> 
+  sample_frac(1) |> 
+  mutate(response = if_else(response == 1, "yes", "no")) |> 
+  mutate(block = "drug")
+
+dat_contrast_placebo <- crossing(sample = 1:20, contrast = seq(0, 4, .5)) |> 
+  rowwise() |> 
+  mutate(p = logistic_fun(contrast, c(-8, 3))) |> 
+  mutate(response = rbinom(1, size = 1, prob = p)) |> 
+  select(response, contrast) |> 
+  ungroup() |> 
+  sample_frac(1) |> 
+  mutate(response = if_else(response == 1, "yes", "no")) |> 
+  mutate(block = "placebo")
+
+dat_contrast_drug_placebo <- bind_rows(
+  dat_contrast_drug, 
+  dat_contrast_placebo
+)
+
+write_csv(dat_contrast_drug_placebo, "data/dat_contrast_drug_placebo.csv")
+
+```
+
+
+
+

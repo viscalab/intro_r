@@ -1,0 +1,1201 @@
+---
+title: "Linear and Generalized Linear Models in R"
+execute: 
+  echo: true
+format: 
+  revealjs:
+    scrollable: true
+    incremental: true
+editor: visual
+---
+
+## 
+
+We have some data (response of a neuron when the contrast of a stimulus is 1%)
+
+$$Y_1, Y_2, \cdots, Y_n$$
+
+. . .
+
+We assume that these data are the values of a random variable, which is specied by a p.d.f.
+
+. . .
+
+For example:
+
+$$f(y) = \frac{1}{\sigma \, \sqrt{2 \pi}} \exp\left(- \frac{(y - \mu)^2}{2 \, \sigma^2}\right)$$
+
+. . .
+
+### Two problems
+
+. . .
+
+**Estimation**
+
+Example:
+
+We estimate the paramater $\mu$ as the mean response.
+
+. . .
+
+**Hypothesis testing**
+
+We assess whether $\mu = 10$
+
+## Random variable that depends on a predictor variable
+
+. . .
+
+We have some data (response of a neuron when the contrast of a stimulus is $x$)
+
+$$(Y_1, X_1), (Y_2, X_2), \cdots, (Y_n, X_n)$$
+
+. . .
+
+```{r}
+#| echo: false
+
+
+library(tidyverse)
+library(broom)
+set.seed(999)
+
+dat <- crossing(sample = 1:20 , x= seq(0, 1, .2)) |> 
+  group_by(x, sample) |> 
+  summarise(y = rnorm(1, mean = 10 + x * 15, sd = 3), .groups = "drop") |> 
+  sample_frac(1)
+```
+
+::: columns
+::: {.column width="50%"}
+```{r}
+dat
+```
+:::
+
+::: {.column width="50%"}
+```{r, fig.width=4, fig.height=4, fig.align='center'}
+#| echo: false
+
+dat |> 
+  ggplot(aes(x = x, y = y )) +
+  geom_point(size = .8) +
+  ylim(0, 30) +
+  theme_classic(20)
+```
+:::
+:::
+
+. . .
+
+$y$ is called the response variable and $x$ is called the predictor variable or covariate (feature in machine learning)
+
+. . .
+
+Now we assume that the p.d.f. also depends on x.
+
+. . .
+
+For example:
+
+$$f(y|x) = \frac{1}{\sigma \, \sqrt{2 \pi}} \exp\left(- \frac{(y - (\beta_0 + \beta_1 x))^2}{2 \, \sigma^2}\right)$$
+
+. . .
+
+*How many parameters does the p.d.f. have?*
+
+. . .
+
+$$\beta_0, \beta_1, \sigma$$
+
+. . .
+
+The aim is, given the data, to obtain:
+
+$$\hat{\beta_0} \,\,\,\,\,\, \hat{\beta_1} \,\,\,\,\,\, \hat{\sigma}$$
+
+. . .
+
+This p.d.f. specifies a simple regression model, but we will see that it could be formulated more generally.
+
+## Population regression function
+
+A population regression function is defined as the expected value of the variable $y$ as a function of $x$.
+
+. . .
+
+```{r,echo=FALSE,fig.align='center', fig.width=4, fig.height=4}
+tibble(x = seq(1, 10, .01)) |> 
+  mutate(m = cos(x)) |> 
+  mutate(y = m + rnorm(n(), mean = m, sd = 2)) |> 
+  ggplot(aes(x, y)) +
+  geom_point(size = .5) +
+  geom_smooth(se = FALSE, color = "black") +
+  theme_classic(20)
+
+```
+
+. . .
+
+Formally
+
+$$r(x) = E[Y|X] = \int_{-\infty}^{\infty} y \, f(y|x) \, dy$$
+
+. . .
+
+We also say that $r(x)$ are the predicted values of $y$.
+
+. . .
+
+Depending on the form of the function $r(x)$ we will have different models.
+
+## Simple linear regression
+
+Given
+
+$$(Y_1, X_1), (Y_2, X_2), \cdots, (Y_n, X_n)$$
+
+. . .
+
+```{r,echo=FALSE,fig.align='center', fig.width=3, fig.height=3}
+ggplot() +
+  geom_point(data = dat, aes(x = x, y = y)) +
+  theme_classic(20)
+
+```
+
+. . .
+
+we assume that the population regression function is
+
+$$r(x) = E[Y|X] = \beta_0 + \beta_1x$$
+
+. . .
+
+$\beta_0$ and $\beta_1$ are called the regressors, regression coefficients, or regression weights.
+
+. . .
+
+It is possible to rewrite the response variable $Y$ in a convenient way
+
+$$Y_1 = \beta_0 + \beta_1 \, x_1+\epsilon_1$$ $$Y_2 = \beta_0 + \beta_1 \, x_2+\epsilon_2$$ $$Y_3 = \beta_0 + \beta_1 \, x_3+\epsilon_3$$ $$\cdots$$
+
+. . .
+
+$$7.99 = \beta_0 + \beta_1 \, .09+\epsilon_1$$ $$19.7 = \beta_0 + \beta_1 \, 0.73+\epsilon_2$$ $$26.2 = \beta_0 + \beta_1 \, 0.88+\epsilon_3$$ $$\cdots$$
+
+. . .
+
+We don't need to assume a specific $f(y|x)$. We just need to assume:
+
+$$E[\epsilon_i|X_i] = 0$$ $$Var[\epsilon_i|X_i] = \sigma^2$$
+
+That is, the average error is zero and the error in the variable $Y$ does not depends on $X$.
+
+. . .
+
+So, our estimation problem is given
+
+$$(Y_1, X_1), (Y_2, X_2), \cdots, (Y_n, X_n)$$ to obtain
+
+$$\hat{\beta_0} \,\,\,\,\,\, \hat{\beta_1} \,\,\,\,\,\, \hat{\sigma}$$
+
+## Simple linear regression: estimators
+
+From the possible estimators of the parameters, the ones called least square estimators have very good properties.
+
+. . .
+
+They are:
+
+$$\hat{\beta_1} = \frac{\sum_{i=1}^n (x_i - \bar{x})(y_i - \bar{y})}{\sum_{i=1}^n (x_i - \bar{x})^2}$$
+
+$$\hat{\beta_0} = \bar{y} - \hat{\beta_1} \bar{x}$$ $$\hat{\sigma} = \sqrt{\frac{\sum_{i=1}^n(y_i - \hat{y_i})^2}{n-2}}$$
+
+. . .
+
+We are not going to use these formulas as they are impleted in R.
+
+. . .
+
+```{r}
+dat
+```
+
+. . .
+
+<br>
+
+```{r}
+model_slr <- lm(y ~ x, data = dat)
+
+model_slr
+```
+
+The first number is $\beta_0$ and the second $\beta_1$. Usually we don't report $\sigma$.
+
+. . .
+
+The interpretation of the intercept ($\beta_0$) is which is the response of the neuron when the contrast of the stimulus is zero.
+
+The interpretation of the slope ($\beta_1$) is how much increases the response for each unit of contrast.
+
+. . .
+
+That was estimation. How about hypothesis testing?
+
+. . .
+
+The function `summary` performs the following hypothesis tests:
+
+$$H_0: \beta_0 =0 \,\,\,\,\,\, H_1: \beta_0  \neq 0$$ and
+
+$$H_0: \beta_1 =0 \,\,\,\,\,\, H_1: \beta_1  \neq 0$$
+
+. . .
+
+*Which is the meaning of* $\beta_1 =0$?
+
+. . .
+
+```{r}
+summary(model_slr)
+```
+
+. . .
+
+<br>
+
+### `broom`
+
+The package `broom` provides three main function (`tidy`, `augment` and `glance`) that can be applied to many models to transform the ouput in data frames.
+
+```{r}
+library(broom)
+
+tidy(model_slr)
+```
+
+. . .
+
+```{r}
+beta <- tidy(model_slr) |> 
+  pull("estimate")
+
+beta
+```
+
+## Plotting the regression line
+
+$$\hat{r}(x) = \hat\beta_0 + \hat\beta_1x$$
+
+. . .
+
+```{r}
+reg_line <- tibble(x = seq(0, 1, .01)) |> 
+  mutate(y = beta[1] + beta[2] * x)
+
+reg_line
+```
+
+. . .
+
+<br>
+
+```{r, fig.align='center', fig.width=3, fig.height=3}
+ggplot() +
+  geom_point(data = dat, aes(x = x, y = y)) +
+  geom_line(data = reg_line, aes(x = x, y = y)) +
+  theme_classic(20)
+```
+
+. . .
+
+<br>
+
+We can use `augment` to obtain the regession function (the predicted values are in `.fitted`)
+
+```{r}
+augment(model_slr)
+```
+
+## How to specify formulas in r
+
+. . .
+
+We don't need to write the regression coefficients.
+
+```{r}
+lm(formula = y ~ x, data = dat) 
+```
+
+. . .
+
+This is an abbreviation of
+
+```{r}
+lm(formula = y ~ x + 1, data = dat) 
+```
+
+. . .
+
+*How do we fit a regression line without intercept?*
+
+. . .
+
+```{r}
+lm(formula = y ~ x + 0, data = dat) 
+```
+
+. . .
+
+or
+
+```{r}
+lm(formula = y ~ x - 1, data = dat) 
+```
+
+## Design matrix
+
+$$Y_1 = \beta_0 + \beta_1 \, x_1+\epsilon_1$$
+
+$$Y_2 = \beta_0 + \beta_1 \, x_2+\epsilon_2$$ $$Y_3 = \beta_0 + \beta_1 \, x_3+\epsilon_3$$ $$\cdots$$
+
+. . .
+
+In matrix form (we writte only the 3 first rows)
+
+$$\begin{bmatrix}
+Y_1 \\
+Y_2  \\
+Y_3  \\
+\end{bmatrix} =
+\begin{bmatrix}
+1 & X_1\\  
+1 & X_2\\
+1 & X_3\\
+\end{bmatrix}
+\times
+\begin{bmatrix}
+\beta_0 \\
+\beta_1  \\
+\end{bmatrix} + 
+\begin{bmatrix}
+\epsilon_1 \\
+\epsilon_2 \\
+\epsilon_3 \\
+\end{bmatrix}$$
+
+. . .
+
+$$\begin{bmatrix}
+12.8 \\
+6.06  \\
+12.6  \\
+\end{bmatrix} =
+\begin{bmatrix}
+1 & 0.6\\  
+1 & 0\\
+1 & 0.2\\
+\end{bmatrix}
+\times
+\begin{bmatrix}
+\beta_0 \\
+\beta_1  \\
+\end{bmatrix} + 
+\begin{bmatrix}
+\epsilon_1 \\
+\epsilon_2 \\
+\epsilon_3 \\
+\end{bmatrix}$$
+
+. . .
+
+Abbreviated as
+
+$$Y = \bf{X}\beta+\epsilon$$
+
+. . .
+
+$\bf{X}$ is called design matrix (or model matrix). It has a column of 1s that corrresponds to the intecept and a column for the predictor variable (contrast).
+
+. . .
+
+<br>
+
+So the regression problem can be formulated as:
+
+Given the design matrix (information about regressors) and the vector of responses, estimate the parameters of the model (regression weights) that better predict the responses.
+
+. . .
+
+<br>
+
+`model.matrix` recovers the design matrix of the model
+
+```{r}
+model.matrix(model_slr)
+```
+
+## Multiple linear regression
+
+$$(Y_1, X_1, Z_1), (Y_2, X_2, Z_2), \cdots, (Y_n, X_n, Z_n)$$
+
+-   $y$ is the response of the neuron
+
+-   $x$ is contrast of the stimulus
+
+-   $z$ is the size of the stimulus
+
+. . .
+
+```{r}
+#| echo: false
+
+
+dat_xz <- crossing(x = seq(0, 1, .01), z = seq(1, 8, length = 101)) |> 
+  group_by(x, z) |> 
+  summarise(y = rnorm(1, mean = 10 + x * 15 + z * 2, sd = 3), .groups = "drop") |> 
+  sample_frac(1) |> 
+  select(y, x, z)
+```
+
+::: columns
+::: {.column width="50%"}
+```{r}
+dat_xz
+```
+:::
+
+::: {.column width="50%"}
+```{r, fig.width=5, fig.height=5, fig.align='center'}
+#| echo: false
+
+dat_xz |> 
+  ggplot(aes(x = x, y = z, fill = y )) +
+  geom_tile() +
+  scale_fill_gradient(low = "white", high = "black") +
+  theme_classic(20)
+
+
+```
+:::
+:::
+
+. . .
+
+we assume that the population regression function is
+
+$$r(x) = \beta_0 + \beta_1x + \beta_2z$$
+
+. . .
+
+It is possible to rewrite the response variable $Y$ in a convenient way
+
+$$Y_1 = \beta_0 + \beta_1 \, x_1+\beta_2 \, z_1+\epsilon_1$$
+
+$$Y_2 = \beta_0 + \beta_1 \, x_2+\beta_2 \, z_2+\epsilon_2$$
+
+$$Y_3 = \beta_0 + \beta_1 \, x_3+\beta_2 \, z_3+\epsilon_3$$
+
+. . .
+
+So, our estimation problem is given
+
+$$(Y_1, X_1, Z_1), (Y_2, X_2, Z_2), \cdots, (Y_n, X_n, Z_n)$$ to obtain
+
+$$\hat{\beta_0} \,\,\,\,\,\, \hat{\beta_1} \,\,\,\,\,\, \hat{\beta_2} \,\,\,\,\,\,\hat{\sigma}$$
+
+## Multiple linear regression: estimators
+
+. . .
+
+*Do you know how to specify the model?*
+
+. . .
+
+```{r}
+model_mlr <- lm(y ~ x + z, data = dat_xz)
+
+model_mlr
+```
+
+The first number is $\beta_0$, the second $\beta_1$ and the third is $\beta_2$
+
+. . .
+
+Hipothesis testing:
+
+```{r}
+summary(model_mlr)
+```
+
+. . .
+
+*Is there an effect of size? Is there an effect of contrast?*
+
+## The regression line
+
+$$\hat{r}(x) = \hat\beta_0 + \hat\beta_1x +  \hat\beta_2z$$
+
+. . .
+
+```{r}
+augment(model_mlr)
+```
+
+## Design matrix
+
+$$Y_1 = \beta_0 + \beta_1 \, x_1+\beta_2 \, z_1+\epsilon_1$$
+
+$$Y_2 = \beta_0 + \beta_1 \, x_2+\beta_2 \, z_2+\epsilon_2$$
+
+$$Y_3 = \beta_0 + \beta_1 \, x_3+\beta_2 \, z_3+\epsilon_3$$ $$\cdots$$
+
+. . .
+
+In matrix form (we writte only the 3 first rows)
+
+$$\begin{bmatrix}
+Y_1 \\
+Y_2  \\
+Y_3  \\
+\end{bmatrix} =
+\begin{bmatrix}
+1 & X_1 & Z_1\\  
+1 & X_2 & Z_2\\
+1 & X_3 & Z_3\\
+\end{bmatrix}
+\times
+\begin{bmatrix}
+\beta_0 \\
+\beta_1  \\
+\beta_2  \\
+\end{bmatrix} + 
+\begin{bmatrix}
+\epsilon_1 \\
+\epsilon_2 \\
+\epsilon_3 \\
+\end{bmatrix}$$
+
+. . .
+
+Abbreviated as
+
+$$Y = \bf{X}\beta+\epsilon$$
+
+. . .
+
+<br>
+
+The regression problem can be formulated as:
+
+Given the design matrix (information about regressors) and the vector of responses, estimate the parameters of the model (regression weights) that better predict the responses.
+
+. . .
+
+<br>
+
+`model.matrix` recovers the design matrix of the model
+
+```{r}
+model.matrix(model_mlr) |> head()
+```
+
+## Interactions
+
+. . .
+
+We have assumed that the effect of contrast and size on the response are independent.
+
+. . .
+
+Let's suppose that the effect of size on the respone of a neuron depends on contrast. For example, maybe the response increase with size, but specially for high contrasts.
+
+. . .
+
+The model that can account for this is:
+
+$$r(x) = \beta_0 + \beta_1x + \beta_2z + \gamma \, xz$$
+
+. . .
+
+Why this formula?
+
+$$r(x) = \beta_0 + (\beta_1 + \gamma\, z) x + \beta_2z $$
+
+## Interactions: fitting the model
+
+. . .
+
+```{r}
+model_mlr_interacion <- lm(y ~ x + z + x:z, data = dat_xz)
+
+model_mlr_interacion
+```
+
+. . .
+
+Abbreviated
+
+```{r}
+model_mlr_interacion <- lm(y ~ x * z, data = dat_xz)
+
+model_mlr_interacion
+```
+
+. . .
+
+Hypothesis testing
+
+```{r}
+summary(model_mlr_interacion)
+```
+
+*Is there evidence that the effect of size depends on contrast?*
+
+## Categorical predictors
+
+$$(Y_1, X_1, Z_1), (Y_2, X_2, Z_2), \cdots, (Y_n, X_n, Z_n)$$
+
+-   $y$ is the response of the neuron
+
+-   $x$ is contrast of the stimulus
+
+-   $z$ is a categorical variable, it specifies whether we measure the neuron in the morning, afternoon or night
+
+. . .
+
+This model is sometimes refered as ANCOVA.
+
+If the explanatory variables are only categorcal, the model is called ANOVA.
+
+. . .
+
+```{r}
+#| echo: false
+
+
+dat_day <- crossing(x = seq(0, 1, .01), z = c("morning", "afternoon", "night")) |> 
+  group_by(x, z) |> 
+  mutate(intercept = if_else(z == "morning", 15, 
+                             if_else(z == "afternoon", 20, 22))) |>
+    mutate(slope = if_else(z == "morning", 15, 
+                             if_else(z == "afternoon", 20, 35))) |> 
+  mutate(z = factor(z, c("morning", "afternoon", "night"))) |> 
+  summarise(y = rnorm(1, mean = intercept + x * slope , sd = 3), .groups = "drop") |> 
+  sample_frac(1) |> 
+  select(y, x, z)
+```
+
+::: columns
+::: {.column width="40%"}
+```{r}
+dat_day
+```
+:::
+
+::: {.column width="60%"}
+```{r, fig.width=6, fig.height=5, fig.align='center'}
+#| echo: false
+
+dat_day |> 
+  ggplot(aes(x = x, y = y, color = z )) +
+  geom_point() +
+  theme_classic(20)
+```
+:::
+:::
+
+## Model
+
+. . .
+
+```{r}
+model_day <- lm(y ~ x + z, data = dat_day)
+```
+
+*How many regression coefficients do you expect?*
+
+<br>
+
+. . .
+
+```{r}
+model_day
+```
+
+There are four! We will explain this later.
+
+. . .
+
+**Plotting the regression function**
+
+```{r}
+reg_function_day <- augment(model_day)
+
+reg_function_day
+```
+
+. . .
+
+```{r, fig.width=6, fig.height=5, fig.align='center'}
+dat_day |> 
+  ggplot(aes(x = x, y = y, color = z )) +
+  geom_point() +
+  geom_line(data = reg_function_day, aes(x = x, y = .fitted, color = z), linewidth = 2) +
+  theme_classic(20)
+```
+
+## Design matrix (DIFFICULT)
+
+. . .
+
+It is possible to write the response variable $Y$ as
+
+$$Y_1 = \beta_m \, m_1 + \beta_a \, a_1 + \beta_n \, n_1 + \beta_x \, x_1 +\epsilon_1$$
+
+$$Y_2 = \beta_m \, m_2 + \beta_a \, a_2 + \beta_n \, n_2 + \beta_x \, x_2 +\epsilon_2$$ $$Y_3 = \beta_m \, m_3 + \beta_a \, a_3 + \beta_n \, n_3 + \beta_x \, x_3 +\epsilon_3$$ Instead of having one regression coefficient for *time of day*, we have a regression coefficient for each possible value that *time of day* can take
+
+. . .
+
+We have 4 variables: $x$, $m_i$, $a_i$ and $n_i$
+
+. . .
+
+$m_i$, $a_i$ and $n_i$ are called indicators variables
+
+. . .
+
+-   $m_i$ is always zero except if the trial $i$ was performed in the morning, then $m_i = 1$
+-   $a_i$ is always zero except if the trial $i$ was performed in the afternoon, then $a_i = 1$
+-   $n_i$ is always zero except if the trial $i$ was performed in the afternoon, then $n_i = 1$
+
+. . .
+
+Let's suppose that the first trial was performed in the morning:
+
+$$Y_1 = \beta_m  + \beta_x \, x_1 +\epsilon_1$$
+
+. . .
+
+Let' suppose that the first two trials were performed in the morning, the next two trials in the afternoon and the next two at night.
+
+$$\begin{bmatrix}
+Y_1 \\
+Y_2  \\
+Y_3  \\
+Y_4  \\
+Y_5  \\
+Y_6  \\
+\end{bmatrix} =
+\begin{bmatrix}
+1 & 0 & 0 & X_1\\  
+1 & 0 & 0 & X_2\\
+0 & 1 & 0 & X_3\\
+0 & 1 & 0 & X_4\\
+0 & 0 & 1 & X_5\\
+0 & 0 & 1 & X_6\\
+\end{bmatrix}
+\times
+\begin{bmatrix}
+\beta_m \\
+\beta_a  \\
+\beta_n  \\
+\beta_x  \\
+\end{bmatrix} + 
+\begin{bmatrix}
+\epsilon_1 \\
+\epsilon_2 \\
+\epsilon_3 \\
+\epsilon_4 \\
+\epsilon_5 \\
+\epsilon_6 \\
+\end{bmatrix}$$
+
+. . .
+
+But, there are other ways to code the data
+
+$$Y_1 = \beta'_0  + \beta'_a \, a_1 + \beta'_n \, n_1 + \beta'_x \, x_1 +\epsilon_1$$ $$Y_2 = \beta'_0  + \beta'_a \, a_2 + \beta'_n \, n_2 + \beta'_x \, x_2 +\epsilon_2$$ $$Y_3 = \beta'_0  + \beta'_a \, a_3 + \beta'_n \, n_3 + \beta'_x \, x_3 +\epsilon_3$$
+
+. . .
+
+with
+
+-   $a_i$ is always zero except if the trial $i$ was performed in the afternoon, then $a_i = 1$
+-   $n_i$ is always zero except if the trial $i$ was performed in the afternoon, then $n_i = 1$
+
+. . .
+
+Let's suppose that the first trial was performed in the morning:
+
+$$Y_1 = \beta'_0  + \beta'_x \, x_1 +\epsilon_1$$
+
+. . .
+
+Let's suppose that the second trial was performed in the afternoon:
+
+$$Y_2 = \beta'_0  + \beta'_a +\beta'_x \, x_2 +\epsilon_1$$
+
+. . .
+
+Now, for contrast equal to zero, the effect of the experiment being performed in the afternoon is $\beta'_0 + \beta'_a$.
+
+. . .
+
+The design matrix is
+
+$$\begin{bmatrix}
+Y_1 \\
+Y_2  \\
+Y_3  \\
+Y_4  \\
+Y_5  \\
+Y_6  \\
+\end{bmatrix} =
+\begin{bmatrix}
+1 & 0 & 0 & X_1\\  
+1 & 0 & 0 & X_2\\
+1 & 1 & 0 & X_3\\
+1 & 1 & 0 & X_4\\
+1 & 0 & 1 & X_5\\
+1 & 0 & 1 & X_6\\
+\end{bmatrix}
+\times
+\begin{bmatrix}
+\beta'_0 \\
+\beta'_a  \\
+\beta'_n  \\
+\beta'_x  \\
+\end{bmatrix} + 
+\begin{bmatrix}
+\epsilon_1 \\
+\epsilon_2 \\
+\epsilon_3 \\
+\epsilon_4 \\
+\epsilon_5 \\
+\epsilon_6 \\
+\end{bmatrix}$$
+
+. . .
+
+*Which codification is used?*
+
+. . .
+
+```{r}
+model.matrix(model_day) |> head()
+```
+
+```{r, fig.width=6, fig.height=5, fig.align='center'}
+dat_day |> 
+  ggplot(aes(x = x, y = y, color = z )) +
+  geom_point() +
+  geom_line(data = reg_function_day, aes(x = x, y = .fitted, color = z), linewidth = 2) +
+  theme_classic(20)
+```
+
+```{r}
+model_day
+```
+
+. . .
+
+We can use the first codign of the design matrix
+
+```{r}
+model_day_2 <- lm(y ~ x + z + 0, data = dat_day)
+
+model_day_2
+```
+
+. . .
+
+```{r}
+model.matrix(model_day_2) |> head()
+```
+
+## Interaction
+
+. . .
+
+```{r}
+model_day_interaction <- lm(y ~ x * z, data = dat_day)
+```
+
+. . .
+
+```{r, fig.width=6, fig.height=5, fig.align='center'}
+dat_day |> 
+  ggplot(aes(x = x, y = y, color = z )) +
+  geom_point() +
+  geom_line(data = augment(model_day_interaction), 
+            aes(x = x, y = .fitted, color = z), linewidth = 2) +
+  theme_classic(20)
+```
+
+. . .
+
+```{r}
+model_day_interaction
+```
+
+We have six parameters (intercept and slope for each time of the day).
+
+## Generalized linear models
+
+. . .
+
+We have seen linear models: there is a linear relationship between the regression coefficients and the response variable.
+
+$$r(x) = E[Y|X] = \beta_0 + \beta_1x$$
+
+. . .
+
+In generelized linear models (GLMs):
+
+. . .
+
+**1** The expected value is a function of the linear part
+
+$$r(x) = E[Y|X] = f(\beta_0 + \beta_1x)$$
+
+. . .
+
+**2** The response variable could be discrete.
+
+. . .
+
+**3** The response variable could have different pdfs. That is, the noise of the response variable could be of different types.
+
+. . .
+
+GLMs include many models, but we will focus on logistic regression.
+
+. . .
+
+For example, consider the problem on whether a participant detects or not the stimulus as a function of the contrast of the stimulus.
+
+. . .
+
+**1**
+
+$$f(z) = \frac{1}{1 + e^{-z}}$$
+
+. . .
+
+It is called logistic function. Let's plot it to see the shape
+
+```{r,echo=FALSE,fig.align='center',fig.width=3, fig.height=3}
+tibble(z = seq(-5, 5, .01)) |> 
+  mutate(f_z = 1 / (1 + exp(-z))) |> 
+  ggplot(aes(z, f_z)) +
+  geom_line() +
+  theme_classic(20)
+```
+
+. . .
+
+**2** The response variable is discrete (classification) and have two values (for example, 0: non-detect and 1:detect)
+
+. . .
+
+**3** The response variable is distributed binomially.
+
+## Logistic regression
+
+. . .
+
+We have some data (response of a participant when the contrast of a stimulus is $x$)
+
+$$(Y_1, X_1), (Y_2, X_2), \cdots, (Y_n, X_n)$$
+
+$Y_i$ could be 0 or 1.
+
+. . .
+
+```{r,echo=FALSE}
+logistic_fun <- function(x, p) 1 / (1 + exp(-(p[1] + p[2] * x)))
+
+dat_logistic <- crossing(sample = 1:20, x = seq(0, 1, .1)) |> 
+  rowwise() |> 
+  mutate(p = logistic_fun(x, c(-5, 12))) |> 
+  mutate(y = rbinom(1, size = 1, prob = p)) |> 
+  select(y, x) |> 
+  ungroup() |> 
+  sample_frac(1)
+
+```
+
+::: columns
+::: {.column width="50%"}
+```{r}
+dat_logistic
+```
+:::
+
+::: {.column width="50%"}
+```{r, fig.width=4, fig.height=4, fig.align='center'}
+#| echo: false
+
+
+dat_logistic |> 
+  ggplot(aes(x = x, y = y)) +
+  geom_point(alpha = .1) +
+  theme_classic(20)
+```
+:::
+:::
+
+. . .
+
+We assume that expected value of our response variable can be modeled as a logistic function
+
+$$r(x) = E[Y|X] = \frac{1}{1 + e^{-(\beta_0 + \beta_1x)}}$$
+
+and our purpose is to find the best estimates for the parameters:
+
+$$\hat{\beta_0} \,\,\,\,\,\, \hat{\beta_1}$$
+
+. . .
+
+Often, instead of plotting $Y_i$, we plot $p_i = E[Y_i|X_i]$ independently for each $X_i$. That corresponds to the proportions of times that a given response is given.
+
+. . .
+
+```{r, echo=FALSE,fig.width=4, fig.height=4, fig.align='center'}
+
+proportions_logistic <- dat_logistic |> 
+  group_by(x) |> 
+  summarise(p = mean(y))
+
+proportions_logistic |> 
+  ggplot(aes(x = x, y = p)) +
+  geom_point() +
+  theme_classic(20)
+```
+
+## Logistic regression: estimators
+
+```{r}
+dat_logistic
+```
+
+. . .
+
+<br>
+
+```{r}
+model_detection <- glm(y ~ x, family = binomial(logit), data = dat_logistic)
+
+model_detection
+```
+
+The first number is $\beta_0$ and the second $\beta_1$.
+
+. . .
+
+<br>
+
+```{r}
+tidy(model_detection)
+```
+
+*Is there an effect of contrast*
+
+## Plotting the regression function
+
+```{r, fig.width=4, fig.height=4, fig.align='center'}
+proportions_logistic <- dat_logistic |> 
+  group_by(x) |> 
+  summarise(p = mean(y))
+
+proportions_logistic |> 
+  ggplot(aes(x = x, y = p)) +
+  geom_point() +
+  theme_classic(20)
+```
+
+. . .
+
+```{r}
+tidy(model_detection)
+```
+
+. . .
+
+<br>
+
+```{r}
+beta <- tidy(model_detection) |> 
+  pull(estimate)
+
+beta
+```
+
+. . .
+
+<br>
+
+```{r}
+reg_line <- tibble(x = seq(0, 1, .01)) |> 
+  mutate(y = 1  / (1 + exp(-beta[1] - beta[2] * x)))
+
+reg_line
+```
+
+. . .
+
+<br>
+
+```{r, fig.width=4, fig.height=4, fig.align='center'}
+proportions_logistic |> 
+  ggplot(aes(x = x, y = p)) +
+  geom_point() +
+  geom_line(data = reg_line, aes(x = x, y = y)) +
+  theme_classic(20)
+```
+
+. . .
+
+*A simpler way to calculate the logistic regression line?*
+
+. . .
+
+```{r, fig.width=4, fig.height=4, fig.align='center'}
+reg_line <- augment(model_detection, type.predict = "response")
+
+proportions_logistic |> 
+  ggplot(aes(x = x, y = p)) +
+  geom_point() +
+  geom_line(data = reg_line, aes(x = x, y = .fitted)) +
+  theme_classic(20)
+```
+
+. . .
+
+If we want to plot the regression function for more values of x:
+
+```{r, fig.width=4, fig.height=4, fig.align='center'}
+reg_line <- augment(model_detection, 
+                    newdata = tibble(x = seq(0, 1, .01)),
+                    type.predict = "response")
+
+proportions_logistic |> 
+  ggplot(aes(x = x, y = p)) +
+  geom_point() +
+  geom_line(data = reg_line, aes(x = x, y = .fitted)) +
+  theme_classic(20)
+```
+
+## Design matrix, multiple logistic regression, interactions, discrete variables
+
+Everything is the same that for linear regression, but:
+
+|                     |     Linear regression     |            Logistic regression            |
+|:-------------------:|:-------------------------:|:-----------------------------------------:|
+|        Call         |            lm             |                    glm                    |
+|        Noise        | It is considered constant |         family = binomial(logit)          |
+| Regression function |      augment(model)       | augment(model, type.predict = "response") |

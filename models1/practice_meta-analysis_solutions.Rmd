@@ -1,0 +1,22 @@
+---
+title: "Meta-analysis: practice"
+output: html_notebook
+---
+
+
+1.    For a random variable $Y$ distributed normally the most often used definition of the standard deviation
+
+$$s =\sqrt{\frac{\sum_{i=1}^n (y_i - \overline{y})^2}{n -1}}$$
+is a less biased estimator of $\sigma$ than a definition that includes $n$ instead of $n-1$ in the denominator. Check that generating 1000 samples of size 30 from a random variable distributed normally with mean 12 and sigma 6.  
+
+```{r}
+tibble(sample = 1:1000) |> 
+  group_by(sample) |> 
+  summarise(y = rnorm(30, mean = 12, sd = 6), .groups = "keep") |> 
+  group_by(sample) |> 
+  summarise(s_n_1 = sqrt(sum((y - mean(y))^2) / (30 - 1)), 
+            s_n = sqrt(sum((y - mean(y))^2) / 30)) |> 
+  ungroup() |> 
+  summarise(expected_value_s_n_1 = mean(s_n_1), expected_value_s_n = mean(s_n))
+```
+

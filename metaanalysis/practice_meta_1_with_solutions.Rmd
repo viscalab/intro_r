@@ -1,0 +1,205 @@
+---
+title: "Meta-analysis: exercises"
+output: html_notebook
+---
+
+
+- The contrast sensitivity of a group of patients is 101, 96, 125, 98, 87, 95, 89, 95, 111, 90 and the contrast sensitivity of a group of healthy individuals is 119, 148, 125, 138, 140, 117,  98, 114, 124, 106, 120, 114. 
+  -   Plot the sensitivity for each participant as a function of the group (and plot also the mean).
+  -   Is there evidence that the constrast sensitivity is different?
+  -   Calculate the typical non-standarized effect size.
+  -   Calculate Hedge's g and its standard error. Is the effect size medium?
+
+```{r}
+sens_patients <- c(101, 96, 125, 98, 87, 95, 89, 95, 111, 90)
+sens_controls <- c(119, 148, 125, 138, 140, 117,  98, 114, 124, 106, 120, 114)
+
+sens <- bind_rows(tibble(sens = sens_patients, cond = "patient"), 
+          tibble(sens = sens_controls, cond = "control")) 
+
+sens_means <- sens |> 
+  group_by(cond) |> 
+  summarise(m = mean(sens))
+
+sens |> 
+  ggplot(aes(x = cond, y = sens)) +
+  geom_point() +
+  geom_point(data = sens_means, aes(x = cond, y = m), color = "green", size = 5)
+```
+
+Strong evidence that the sensitivity is different:
+
+```{r}
+t.test(sens_patients, sens_controls)
+```
+
+
+```{r}
+mean(sens_controls) - mean(sens_patients)
+```
+
+```{r}
+library(esc)
+
+calculate_hedges <- function(y_1, y_2) {
+  n_1 <- length(y_1)
+  n_2 <- length(y_2)
+  
+  m_1 <- mean(y_1)
+  m_2 <- mean(y_2)
+  
+  sd_1 <- sd(y_1)
+  sd_2 <- sd(y_2) 
+  
+  g <- esc_mean_sd(grp1m = m_1, grp2m = m_2, 
+            grp1sd = sd_1, grp2sd = sd_2, 
+            grp1n = n_1, grp2n = n_2, 
+            es.type = "g")
+  
+  g
+  
+}
+
+calculate_hedges(sens_controls, sens_patients)
+```
+
+The effect size is very large. 
+
+
+- In one study to assess the efectiveness of a drug to reduce fever, 36 participants received a placebo and 32 participants received the drug. The results showed that the drug decreased fever with an affect size of 0.62 (cohen's d). Estimate the standard error of the effect size.  
+
+```{r}
+calculate_d_se <- function(n_1, n_2, d) {
+  sqrt((n_2 + n_1) / (n_2 * n_1) + d^2 / (2*(n_1 + n_2)))
+}
+
+calculate_d_se(32, 36, 0.62)
+```
+
+- Consider that the sample size of two groups is the same. For a Cohen's d of 0.5, 1 and 2, make a plot that shows how the standard error is affected by sample size for each value of Cohen's d.
+
+```{r}
+crossing(n = 1:50, d = c(.5, 1, 2)) |> 
+  mutate(se = estimate_se_from_d_n(d, n, n)) |> 
+  mutate(d = as.factor(d)) |> 
+  ggplot(aes(x = n, y = se, color = d)) +
+  geom_line() +
+  ylim(0, 2)
+```
+
+- A group of people with schizophrenia and a control group of healthy individuals perform an experiment in which the reaction time is measured. The reaction times measured are:
+
+```{r}
+rt_scz <- c(313, 396, 312, 315, 320, 343,280, 288, 285, 297, 418, 296, 383, 403, 336)
+rt_control <- c(305, 283, 277, 353, 322, 353, 333, 276, 298, 442, 299, 329, 321, 229, 361, 306, 328, 344, 310, 319)
+```
+
+  -   Calculate d and the standard error (using esc package).
+  -   Estimate the standard error using simulation (exercise with larger difficulty).
+
+```{r}
+calculate_cohen <- function(y_1, y_2) {
+  n_1 <- length(y_1)
+  n_2 <- length(y_2)
+  
+  m_1 <- mean(y_1)
+  m_2 <- mean(y_2)
+  
+  sd_1 <- sd(y_1)
+  sd_2 <- sd(y_2) 
+  
+  d <- esc_mean_sd(grp1m = m_1, grp2m = m_2, 
+            grp1sd = sd_1, grp2sd = sd_2, 
+            grp1n = n_1, grp2n = n_2, 
+            es.type = "d")
+  
+  d
+  
+}
+
+calculate_cohen(rt_scz, rt_control)
+```
+
+
+
+## Simulations 
+We will use these functions
+
+```{r}
+
+calculate_eff_size_from_tibble <- function(data) {
+  y_control <- data |> 
+    filter(cond == "control") |> 
+    pull("y")
+  
+  y_scz <- data |> 
+    filter(cond == "scz") |> 
+    pull("y")
+  
+  d <- calculate_cohen(y_control, y_scz)$es
+  
+  tibble(d)
+}
+
+calculate_sd_pooled <- function(n_1, n_2, sd_1, sd_2) {
+  sqrt( ((n_1 - 1) * sd_1^2 + (n_2 - 1) * sd_2^2) / (n_1 + n_2 - 2))
+}
+ 
+```
+
+
+Calculating sample sizes, means and the pooled standard deviation
+
+```{r}
+n_scz <- length(rt_scz)
+n_control <- length(rt_control)
+
+mean_scz <- mean(rt_scz)
+mean_control <- mean(rt_control)
+
+sd_scz <- sd(rt_scz)
+sd_control <- sd(rt_control)
+
+sd_pooled <- calculate_sd_pooled(n_scz, n_control, sd_scz, sd_control)
+```
+
+Creating fake samples assuming that the means of the populations are the means of the samples and the standard deviation of the population is the pooled standard deviation from the samples
+
+```{r}
+n_samples <- 1000
+
+samples_scz <- tibble(sample = 1:n_samples) |> 
+  group_by(sample) |> 
+  summarise(y = rnorm(n_scz, mean = mean_scz, sd = sd_pooled), 
+            .groups = "keep") |> 
+  mutate(cond = "scz")
+
+samples_control <- tibble(sample = 1:n_samples) |> 
+  group_by(sample) |> 
+  summarise(y = rnorm(n_control, mean = mean_control, sd = sd_pooled), 
+            .groups = "keep") |> 
+  mutate(cond = "control")
+
+samples <- samples_scz |> 
+  bind_rows(samples_control)
+
+```
+
+Estimating Cohen's d for each sample
+
+```{r}
+distribution_eff_sizes <- samples |> 
+  group_by(sample) |> 
+  summarise(calculate_eff_size_from_tibble(cur_data()))
+```
+
+The standard error is the standard deviation of the distribution of effect sizes:
+
+```{r}
+distribution_eff_sizes |> 
+  pull("d") |> 
+  sd()
+
+# sd(distribution_eff_sizes$d) # this is the same
+```
+

@@ -1,0 +1,29 @@
+---
+title: "Meta-analysis: exercises"
+output: html_notebook
+---
+
+
+- The contrast sensitivity of a group of patients is 101, 96, 125, 98, 87, 95, 89, 95, 111, 90 and the contrast sensitivity of a group of healthy individuals is 119, 148, 125, 138, 140, 117,  98, 114, 124, 106, 120, 114. 
+  -   Plot the sensitivity for each participant as a function of the group (and plot also the mean).
+  -   Is there evidence that the constrast sensitivity is different?
+  -   Calculate the typical non-standarized effect size.
+  -   Calculate Hedge's g and its standard error. Is the effect size medium?
+
+
+
+- In one study to assess the efectiveness of a drug to reduce fever, 36 participants received a placebo and 32 participants received the drug. The results showed that the drug decreased fever with an affect size of 0.62 (cohen's d). Estimate the standard error of the effect size.  
+
+
+- Consider that the sample size of two groups is the same. For a Cohen's d of 0.5, 1 and 2, make a plot that shows how the standard error is affected by sample size for each value of Cohen's d.
+
+
+- A group of people with schizophrenia and a control group of healthy individuals perform an experiment in which the reaction time is measured. The reaction times measured are:
+
+```{r}
+rt_scz <- c(313, 396, 312, 315, 320, 343,280, 288, 285, 297, 418, 296, 383, 403, 336)
+rt_control <- c(305, 283, 277, 353, 322, 353, 333, 276, 298, 442, 299, 329, 321, 229, 361, 306, 328, 344, 310, 319)
+```
+
+  -   Calculate d and the standard error (using esc package).
+  -   Estimate the standard error using simulation (exercise with larger difficulty).

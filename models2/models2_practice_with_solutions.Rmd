@@ -1,0 +1,176 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+## Exercise 1
+
+The file "dat_contrast.csv" in the folder "data" contains the results of a participant in a detection experiment. On each trial, the participant needs to say "yes" if she can see the stimulus and "no" if she cannot see the stimulus. 
+
+Plot the proportion of detections as a function of contrast and fit a logistic psychometric function.
+
+Which is the estimated value of the slope?
+
+Looking at the plot, for which contrast the proportion of detection is about 50%. 
+
+
+```{r}
+library(tidyverse)
+library(broom)
+
+dat_contrast <- read_csv("data/dat_contrast.csv")
+```
+```{r}
+dat_contrast <- dat_contrast |> 
+  mutate(response = if_else(response == "yes", 1, 0))
+```
+
+
+
+```{r}
+proportion_contrast <- dat_contrast |> 
+  group_by(contrast) |> 
+  summarise(prop = mean(response))
+```
+
+```{r}
+model_contrast <- glm(response ~ contrast, family = binomial(logit), 
+                      data = dat_contrast)
+
+
+```
+
+```{r}
+tidy(model_contrast) |> 
+  filter(term == "contrast") |> 
+  pull(estimate)
+```
+
+```{r}
+prediction_contrast <- augment(model_contrast, 
+                               newdata = tibble(contrast = seq(0, 4, .01)),
+                               type.predict = "response")
+```
+
+```{r}
+proportion_contrast |> 
+  ggplot(aes(x = contrast, y = prop)) +
+  geom_point() +
+  geom_line(data = prediction_contrast, 
+            aes(x = contrast, y = .fitted))
+```
+
+For 2% contrast, the proportion of detection is about 50%. 
+
+
+## Exercise 2
+
+An experiment measures the reaction time in response to stimuli that can have two sizes (small and large) and different levels of contrast (the file "dat_rt.csv" is located in the folder data). 
+
+Plot the regression line for the reaction time as a function of contrast for each size considering that the slope is the same for both sizes or that that slopes are different. 
+
+
+Is there evidence that the slopes are different for the two sizes. 
+
+
+```{r}
+dat_rt <- read_csv("data/dat_rt.csv")
+```
+
+```{r}
+model_rt_same_slope <- lm(rt ~ contrast + size, data = dat_rt)
+
+reg_line_rt_same_slope <- augment(model_rt_same_slope)
+
+dat_rt |> 
+  ggplot(aes(contrast, rt, color = size)) +
+  geom_point(position = position_dodge(width = 0.02)) +  #add a small jitter for visualization
+  geom_line(data = reg_line_rt_same_slope, 
+            aes(x = contrast, y = .fitted))
+```
+
+```{r}
+model_rt_dif_slope <- lm(rt ~ contrast  * size, data = dat_rt)
+
+reg_line_rt_dif_slope <- augment(model_rt_dif_slope)
+
+dat_rt |> 
+  ggplot(aes(contrast, rt, color = size)) +
+  geom_point(position = position_dodge(width = 0.02)) +  #add a small jitter for visualization
+  geom_line(data = reg_line_rt_dif_slope, 
+            aes(x = contrast, y = .fitted))
+```
+
+
+```{r}
+summary(model_rt_dif_slope)
+```
+
+## Exercise 3
+
+This data frame represents fake data collected from 10 subjects on sleep duration (in hours) and mental well-being scores (on a scale of 1-5).
+
+```{r}
+sleep_data <- tibble(Subject = 1:10,
+                     Sleep_Duration = c(7.2, 8.5, 6.8, 7.5, 9.1, 5.3, 6.4, 7.9, 8.2, 6.1),
+                     Mental_Wellbeing = c(3, 4, 2, 3, 5, 1, 2, 4, 4, 2))
+```
+
+  -   Use simple linear regression to examine the relationship between sleep duration and mental well-being.
+  -     Report the coefficients of the line of best fit.
+  -   Interpret the results in terms of the strength and direction of the relationship between sleep duration and mental well-being.
+  -   Create a scatter plot of the data, and add the line of best fit to the plot.
+  
+
+```{r}
+model_sleep <- lm(Mental_Wellbeing ~ Sleep_Duration, 
+                  data = sleep_data)
+
+tidy(model_sleep)
+```
+
+```{r}
+ggplot()+
+  geom_point(data = sleep_data, aes(x = Sleep_Duration, y = Mental_Wellbeing)) +
+  geom_line(data = augment(model_sleep), 
+            aes(x = Sleep_Duration, y = .fitted))
+```
+
+## Exercise 4
+
+The file "dat_contrast_drug.csv" in the folder "data" contains the results of a participant in a detection experiment. On each trial, the participant says "yes" if she can see the stimulus and "no" if she cannot see the stimulus. The participant perform a block of trials under placebo and a block of trials under some drug. Fit a psychometric function model for each block in which the intercept is considered different, but the slope is the same. 
+
+
+```{r}
+
+dat_contrast_drug_placebo <- read_csv("data/dat_contrast_drug_placebo.csv", 
+                                      show_col_types = FALSE)
+
+dat_contrast_drug_placebo <- dat_contrast_drug_placebo |> 
+  mutate(response = if_else(response == "yes", 1, 0))
+
+proportions_contrast_drug_placebo <- dat_contrast_drug_placebo |> 
+  group_by(block, contrast) |> 
+  summarise(prop = mean(response), 
+            .groups = "keep")
+
+
+model_contrast_drug_placebo <- glm(response ~ contrast + block, 
+                                   family = binomial(logit), 
+                                   data = dat_contrast_drug_placebo)
+
+pred_contrast_drug_placebo <- augment(model_contrast_drug_placebo,
+                                      newdata = crossing(block = c("drug","placebo"), 
+                                                         contrast = seq(0, 4, .01)), 
+                                      type.predict = "response")
+
+proportions_contrast_drug_placebo |> 
+  ggplot(aes(x = contrast, y = prop, color = block)) +
+  geom_point() +
+  geom_line(data = pred_contrast_drug_placebo, 
+            aes(x = contrast, y = .fitted, color = block))
+
+```
+
+
+

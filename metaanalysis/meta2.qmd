@@ -1,0 +1,582 @@
+---
+title: "Basics of statistics for meta-analysis. Part II. "
+format: 
+  revealjs:
+    smaller: false
+    incremental: true
+    scrollable: true
+editor: visual
+---
+
+## Cohen's $d$
+
+. . .
+
+In a population, blood pressure is distributed normally
+
+-   with mean $\mu_{control}$ and standard deviation $\sigma$ for the drug group
+
+-   with mean $\mu_{drug}$ and standard deviation $\sigma$ for the placebo group
+
+. . .
+
+We define the population standardized mean difference as
+
+$$\theta = \frac{\mu_{control} - \mu_{drug}}{\sigma}$$
+
+. . .
+
+which corresponds to how many standard deviations are the means separated.
+
+. . .
+
+We need to estimate $\theta$ from our data.
+
+. . .
+
+A natural estimator is:
+
+$$d = \frac{\overline{y}_{control} - \overline{y}_{drug}}{s}$$ where $s$ is the pooled standard devation
+
+. . .
+
+Instead of using $d$, we will use Hedges' $g$, which provides a small correction (sometimes is known as Cohen's $d$).
+
+. . .
+
+Given a sample we obtain $g_1$.
+
+. . .
+
+If we were able to collect another sample, we will obtain $g_2$.
+
+. . .
+
+$\cdots$
+
+If we were able to collect many samples, we will obtain a distribution of gs.
+
+. . .
+
+The standard deviation of gs is called the standard error and provides a measure of how precise is our measure of $g$.
+
+. . .
+
+We don't need to collect many samples. With one sample, we can estimate the standard error.
+
+. . .
+
+The standard error decreases as the sample size of each group increases and the standard deviation of each group decreases.
+
+## Estimating $g$ and its $se$
+
+. . .
+
+```{r,echo=FALSE}
+library(tidyverse)
+library(broom)
+
+set.seed(999)
+
+y_drug <- rnorm(15, mean = 140, sd = 30)
+y_control <- rnorm(20, mean = 160, sd = 30)
+```
+
+```{r,echo=TRUE}
+y_drug
+```
+
+```{r,echo=TRUE}
+y_control
+```
+
+. . .
+
+```{r,echo=TRUE, message=FALSE}
+library(tidyverse)
+library(esc)
+
+calculate_hedges <- function(y_1, y_2) {
+  n_1 <- length(y_1)
+  n_2 <- length(y_2)
+  
+  m_1 <- mean(y_1)
+  m_2 <- mean(y_2)
+  
+  sd_1 <- sd(y_1)
+  sd_2 <- sd(y_2) 
+  
+  esc_mean_sd(grp1m = m_1, grp2m = m_2, 
+            grp1sd = sd_1, grp2sd = sd_2, 
+            grp1n = n_1, grp2n = n_2,
+            es.type = "g")
+  
+}
+```
+
+. . .
+
+<br>
+
+```{r,echo=TRUE}
+calculate_hedges(y_control, y_drug)
+```
+
+. . .
+
+The **Variance** is just the square of the Standard Error.
+
+. . .
+
+The **Weight** is just the inverse of the Variance; larger values indicate larger precision.
+
+. . .
+
+The **Lower and Upper CI** are the 95% confidence intervals for the effect size. They are related to the SE.
+
+. . .
+
+::: callout-note
+Each value of the CI is an estimator (random variable). That is, for each sample, we will obtain different CI.
+
+The meaning of the CI is that if we collect many samples and for each sample we calculate the CI, in 95% of the samples the population effect size will be within the CI.
+:::
+
+. . .
+
+**Estimation** and **Hypothesis testing** are connected.
+
+. . .
+
+For example, in this case we will conclude that there is not evidence of an effect ($\mu_{drug} = \mu_{control}$) because the CI contains 0.
+
+## Pooling effect sizes
+
+```{r,echo=FALSE}
+y_1_drug <- rnorm(15, mean = 140, sd = 30)
+y_1_control <- rnorm(20, mean = 160, sd = 30)
+
+y_2_drug <- rnorm(45, mean = 145, sd = 30)
+y_2_control <- rnorm(60, mean = 155, sd = 30)
+```
+
+Study 1
+
+. . .
+
+```{r,echo=TRUE}
+y_1_drug
+```
+
+```{r,echo=TRUE}
+y_1_control
+```
+
+. . .
+
+<br>
+
+Study 2
+
+```{r,echo=TRUE}
+y_2_drug
+```
+
+```{r,echo=TRUE}
+y_2_control
+```
+
+. . .
+
+Effect size for Study 1
+
+```{r,echo=TRUE}
+calculate_hedges(y_1_control, y_1_drug)
+```
+
+. . .
+
+Effect size for Study 2
+
+```{r,echo=TRUE}
+calculate_hedges(y_2_control, y_2_drug)
+```
+
+. . .
+
+What we want to do in meta-analysis is to combine the evidence from these two studies.
+
+. . .
+
+*Which study is more precise?*
+
+. . .
+
+The second.
+
+. . .
+
+*Is is OK if we use the mean to combine the effect sizes?*
+
+. . .
+
+No, because study 2 is more precise.
+
+. . .
+
+<br>
+
+A natural way to combine the evidence is to use the Weight.
+
+The first study should contribute with a 23%.
+
+```{r,echo=TRUE}
+7.1633 / (7.1633 + 24.5693) 
+```
+
+. . .
+
+The second study should contribute with a 77%.
+
+```{r,echo=TRUE}
+ 24.5693 / (7.1633 + 24.5693) 
+```
+
+. . .
+
+The combined effect size should be
+
+```{r,echo=TRUE}
+0.2257395 * 1.2380 +  0.7742605 * 0.6124
+```
+
+. . .
+
+This is exactly the effect size is combined in a meta-analysis (fixed-effect).
+
+## Fixed-effect meta-analysis using `meta`
+
+. . .
+
+```{r,echo=TRUE}
+study_1 <- calculate_hedges(y_1_control, y_1_drug) |> 
+  as_tibble()
+
+study_1
+```
+
+. . .
+
+Let's include a name in the study column
+
+```{r,echo=TRUE}
+study_1 <- calculate_hedges(y_1_control, y_1_drug) |> 
+  as_tibble() |> 
+  mutate(study = "Perico et al. 1980")
+  
+
+study_1
+```
+
+. . .
+
+<br>
+
+```{r,echo=TRUE}
+study_2 <- calculate_hedges(y_2_control, y_2_drug) |> 
+  as_tibble() |> 
+  mutate(study = "Palotes et al. 1990")
+  
+
+study_2
+```
+
+. . .
+
+<br> Let's combine the data in a single data frame.
+
+```{r,echo=TRUE}
+studies <- study_1 |> 
+  bind_rows(study_2) |> 
+  select(study, es, se)
+
+studies
+```
+
+<br>
+
+```{r,echo=TRUE}
+library(meta)
+
+our_meta <- metagen(TE = es, seTE = se, studlab = study, 
+                    fixed = TRUE, 
+                    random = FALSE, 
+                    data = studies)
+
+our_meta
+```
+
+. . .
+
+<br>
+
+```{r,echo=TRUE}
+summary(our_meta)
+```
+
+. . .
+
+<br>
+
+```{r,echo=TRUE}
+forest(our_meta)
+```
+
+. . .
+
+That's it!
+
+## Fixed-effect vs random-effect meta-analysis
+
+. . .
+
+**Fixed-effect meta-analysis**
+
+. . .
+
+The assumption is that all the studies are measuring the same population, which has a population effect size of $\theta$.
+
+. . .
+
+The population effect size from Study 1 is $\theta_1$, which is equal to $\theta$.
+
+. . .
+
+The population effect size from Study 2 is $\theta_2$, which is equal to $\theta$.
+
+. . .
+
+$$\cdots$$
+
+. . .
+
+$g_1$, $g_2$, ... are different because of sampling variability.
+
+$$g_k = \theta + \epsilon_k$$
+
+. . .
+
+**Random-effect meta-analysis**
+
+. . .
+
+It is not assumed that the studies are measuring the same population (this is more realistic in many cases).
+
+-   Maybe the treatment between studies is slightly different.
+-   The people have different ages.
+-   ....
+
+. . .
+
+$$g_k = \theta_k + \epsilon_k$$
+
+. . .
+
+Our aim is to estimate *the mean* across $\theta_k$.
+
+## Random-effect meta-analysis using `meta`
+
+. . .
+
+```{r,echo=TRUE}
+our_meta <- metagen(TE = es, seTE = se, studlab = study, 
+                    fixed = FALSE, 
+                    random = TRUE, 
+                    data = studies)
+
+our_meta
+```
+
+. . .
+
+<br>
+
+```{r,echo=TRUE}
+summary(our_meta)
+```
+
+```{r,echo=TRUE}
+forest(our_meta)
+```
+
+. . .
+
+We can modify the plot
+
+```{r,echo=TRUE}
+forest(our_meta, layout= "JAMA", hetstat = FALSE, 
+       xlim = c(-0.1, 2.3))
+```
+
+## Publication bias
+
+To get an intuition let's perform some simulations considering a fixed-effect meta-analysis.
+
+. . .
+
+Let's consider a population
+
+```{r,echo=TRUE}
+sigma <- 30
+
+mu_control <- 160
+mu_drug <- 140
+```
+
+And let's generate samples of differente sample size
+
+```{r,echo=TRUE}
+samples <- crossing(n = 5:10000) |> 
+  group_by(n) |> 
+  summarise(y_drug = rnorm(n, mean = mu_drug, sd = sigma),
+            y_control = rnorm(n, mean = mu_control, sd = sigma), 
+            .groups = "keep")
+
+samples
+```
+
+. . .
+
+<br>
+
+```{r,echo=TRUE}
+hedges_g <- samples |> 
+  group_by(n) |> 
+  summarise(as_tibble(calculate_hedges(y_control, y_drug))) |> 
+  select(n, es, se)
+
+hedges_g
+```
+
+. . .
+
+<br>
+
+```{r,echo=TRUE}
+ggplot() +
+  geom_point(data = hedges_g, aes(x = es, y = se), size = .5) 
+```
+
+. . .
+
+```{r,echo=TRUE}
+ggplot() +
+  geom_point(data = hedges_g, aes(x = es, y = se), size = .5) +
+  scale_y_reverse()
+```
+
+. . .
+
+![](publication_bias.png)
+
+# Calculating effect sizes
+
+## From raw data
+
+. . .
+
+The authors share the data (increasingly common).
+
+. . .
+
+Asking the authors for the data.
+
+. . .
+
+Scraping the data from the graphs.
+
+. . .
+
+<br>
+
+```{r,eval=FALSE,echo=TRUE}
+calculate_hedges(y_1, y_2)
+```
+
+## From the means, the standards deviations and samples size
+
+. . .
+
+```{r,eval=FALSE,echo=TRUE}
+esc_mean_sd(grp1m = mean_1, grp2m = mean_2, 
+            grp1sd = sd_1, grp2sd = sd_2, 
+            grp1n = n_1, grp2n = n_2, 
+            es.type = "g")
+```
+
+## From the means, the standard errors for each sample and samples sizes
+
+. . .
+
+We can calculate the standard deviations by multiplying the standard error by $\sqrt{n}$, but this function is more direct.
+
+. . .
+
+```{r,eval=FALSE,echo=TRUE}
+esc_mean_se(grp1m = mean_1, grp2m = mean_2, 
+            grp1se = se_1, grp2se = se_2, 
+            grp1n = n_1, grp2n = n_2, 
+            es.type = "g")
+```
+
+## From the results of a t-test (independent samples)
+
+<br>
+
+**From the value of the t-statistic**
+
+```{r,eval=FALSE,echo=TRUE}
+esc_t(t = t_statistic, grp1n = n_1, grp2n = n_2, es.type = "g")
+```
+
+. . .
+
+<br>
+
+**From the value of the p-value**
+
+```{r,eval=FALSE,echo=TRUE}
+esc_t(p = p_value, grp1n = n_1, grp2n = n_2, es.type = "g")
+```
+
+. . .
+
+<br>
+
+**Intuition of why we can calculate** $d$ from $t$
+
+. . .
+
+To simplify, let's consider the case in which $n_1 = n_2 = n$
+
+. . .
+
+$$d = \frac{\overline{y}_{control} - \overline{y}_{drug}}{s}$$
+
+. . .
+
+but $s = se \sqrt{n}$
+
+. . .
+
+$$d = \frac{\overline{y}_{control} - \overline{y}_{drug}}{se \sqrt{n}}$$
+
+. . .
+
+$$d = \frac{t}{\sqrt{n}}$$
+
+. . .
+
+or
+
+$$t = d \, {\sqrt{n}}$$
