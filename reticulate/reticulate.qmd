@@ -5,7 +5,7 @@ editor: visual
 ---
 
 ## Python installation
-
+ 
 For data science, the Anaconda distribution of python is recommended. It includes:
 
   - Common packages for data science. 
