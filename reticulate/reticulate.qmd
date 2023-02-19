@@ -1,0 +1,117 @@
+---
+title: "reticulate"
+format: html
+editor: visual
+---
+
+## Python installation
+
+For data science, the Anaconda distribution of python is recommended. It includes:
+
+  - Common packages for data science. 
+  - Easy management of virtual environments with the package Conda.
+  
+
+## Creating a virtual environment named glmhmm
+
+In terminal:
+
+conda create -n glmhmm python=3.9
+
+
+## Moving to a virtual environment 
+
+In terminal: 
+
+conda activate glmhmm
+
+
+## Installing packages in an environment
+
+### For packages that are included in conda repository
+
+Once you are in an environment, type in terminal:
+
+conda install numpy 
+
+
+### For local packages 
+
+https://github.com/zashwood/ssm
+
+In terminal:
+
+cd ssm
+pip install numpy cython
+pip install -e .
+
+## Moving to a different virtual environment 
+
+In terminal: 
+
+conda deactivate 
+conda activate anotherenvironment
+
+
+## Activating an environment in r
+
+```{r}
+library(reticulate)
+
+use_condaenv("glmhmm")
+```
+
+
+## Using python 
+
+```{python}
+for i in range(3):
+  print(i)
+```
+
+## Import a python library
+
+```{python}
+import numpy as np
+```
+
+```{python}
+np.array([1, 2, 3])
+```
+
+
+## Calling python avariable within r
+
+```{python}
+a = np.array([1, 2])
+```
+
+
+```{r}
+py$a
+```
+
+
+## Calling r variable within python 
+
+```{r}
+x <- c(1, 3)
+```
+
+```{python}
+r.x
+```
+
+## You can create a python file and source it
+
+```{r}
+source_python("python_code.py")
+```
+
+## Python "console
+```{r}
+repl_python()
+```
+
+
+
