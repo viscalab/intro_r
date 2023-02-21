@@ -33,6 +33,8 @@ conda activate glmhmm
 Once you are in an environment, type in terminal:
 
 conda install numpy 
+conda install matplotlib
+conda install pandas
 
 
 ### For local packages 
@@ -114,4 +116,11 @@ repl_python()
 ```
 
 
+## Python function called from r
+
+```{r}
+source_python("my_function.py")
+
+my_function(3)
+```
 
