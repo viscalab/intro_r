@@ -1,0 +1,248 @@
+---
+title: "glmhmm1"
+format: html
+editor: visual
+---
+
+## Libraries
+
+```{r}
+library(reticulate)
+use_condaenv("glmhmm")
+
+source_python("python/glm_hmm.py")
+```
+
+```{python}
+import numpy as np
+import numpy.random as npr
+import matplotlib.pyplot as plt
+import ssm 
+from ssm.util import find_permutation
+```
+
+```{r}
+library(tidyverse)
+library(broom)
+
+list.files("R", full.names = TRUE) |> 
+  walk(source)
+```
+
+
+```{r}
+dat <- read_csv("data/dat.csv", show_col_types = FALSE)
+```
+
+
+## Looking at the data
+
+```{r}
+proportions <- dat |> 
+  group_by(duration) |> 
+  summarise(prop = mean(response))
+
+proportions |> 
+  ggplot(aes(x = duration, y = prop)) +
+  geom_line() +
+  geom_point() +
+  ylim(0, 1)
+```
+
+## Fitting a glm
+
+```{r}
+glm_model <- glm(response ~ duration, family = binomial(logit), 
+                                          data = dat)
+glm_model |> tidy()
+```
+The log likelihood
+```{r}
+logLik(glm_model)
+```
+
+```{r}
+proportions |> 
+  ggplot(aes(x = duration, y = prop)) +
+  geom_line(data = augment(glm_model, 
+                           newdata = tibble(duration = seq(-1, 1, .01)),
+                           type.predict = "response"), 
+            aes(x = duration, y = .fitted)) +
+  geom_point() +
+  ylim(0, 1)
+```
+
+## Model matrix
+
+```{r}
+data_matrix <- dat %>% 
+  mutate(intercept = 1, 
+         duration = duration) %>% 
+  ungroup() %>% 
+  select(session, response, intercept, duration)
+
+data_matrix
+```
+
+## Fitting the glm-hmm with 1 state (that should be the same that the standard glm)
+
+
+```{r}
+glm_hmm_1 <- data_matrix |>  
+  glm_hmm_r(.num_states = 1)
+
+glm_hmm_1
+```
+
+```{r}
+glm_hmm_1$recovered_weights
+```
+We obtain the same coefficients.
+
+The likelihood also coincides
+
+```{r}
+glm_hmm_1$log_lik
+```
+
+
+Psychometric function
+
+```{r}
+psycho_1 <- tibble(duration = seq(-1, 1, .01)) |> 
+  mutate(prop = glm_logistic_fun(duration, glm_hmm_1$recovered_weights$value))
+```
+
+```{r}
+proportions |> 
+  ggplot(aes(x = duration, y = prop)) +
+  geom_line(data = psycho_1, 
+            aes(x = duration, y = prop)) +
+  geom_point() +
+  ylim(0, 1)
+```
+
+
+## glm-hmm, 2 states
+
+It is necessary to use several seeds because the loglikelihood changes quite a lot depending on the initilization.
+
+```{r}
+glm_hmm_2 <- data_matrix %>% 
+  glm_hmm_r(.num_states = 2)
+```
+
+
+```{r}
+glm_hmm_2$recovered_weights
+```
+
+
+```{r}
+create_psychometric <- function(.value) {
+  tibble(duration = seq(-1, 1, .01)) |> 
+    mutate(prop = glm_logistic_fun(duration, .value))
+}
+
+psycho_2 <- glm_hmm_2$recovered_weights |> 
+  group_by(state) |> 
+  reframe(create_psychometric(value))
+```
+
+```{r}
+psycho_2 |> 
+  ggplot(aes(x = duration, y = prop, color = state)) + 
+  geom_line()
+```
+
+```{r}
+glm_hmm_2$posterior_probs
+```
+
+```{r}
+ggplot() +
+  geom_line(data = glm_hmm_2$posterior_probs, 
+            aes(x = trial, y = p, color = state)) +
+  geom_point(data = dat, aes(x = trial, y = response), shape = "|")
+```
+
+
+## glm-hmm, 2 states, multiple initial conditions
+
+```{r}
+glm_hmm_2 <- data_matrix %>% 
+  glm_hmm_r(.num_states = 2, .seeds = 1:20, .all_seeds = TRUE)
+```
+
+```{r}
+glm_hmm_2 %>% 
+  arrange(log_lik) %>% 
+  mutate(ordered_seed = row_number()) %>% 
+  ggplot(aes(ordered_seed, log_lik)) +
+  geom_line() +
+  geom_point()
+```
+
+```{r}
+glm_hmm_2 <- data_matrix %>% 
+  glm_hmm_r(.num_states = 2, .seeds = 1:20)
+```
+
+```{r}
+psycho_2 <- glm_hmm_2$recovered_weights |> 
+  group_by(state) |> 
+  reframe(create_psychometric(value))
+```
+
+```{r}
+psycho_2 |> 
+  ggplot(aes(x = duration, y = prop, color = state)) + 
+  geom_line()
+```
+
+```{r}
+ggplot() +
+  geom_line(data = glm_hmm_2$posterior_probs, 
+            aes(x = trial, y = p, color = state)) +
+  geom_point(data = dat, aes(x = trial, y = response), shape = "|")
+```
+
+
+## Several participants
+
+```{r}
+dat2 <- read_csv("data/dat2.csv", show_col_types = FALSE)
+```
+
+
+```{r}
+data_matrix_2 <- dat2 %>% 
+  mutate(intercept = 1) %>% 
+  ungroup() %>% 
+  select(participant, session, response, intercept, duration)
+```
+
+```{r}
+glm_hmm_size_2 <- data_matrix_2 %>%
+  group_by(participant) %>%
+  nest() %>%
+  rowwise() %>%
+  reframe(fit = list(glm_hmm_r(data, .seeds = 1:2, .num_states = 2)))
+```
+
+
+```{r}
+glm_hmm_size_2 
+```
+
+```{r}
+glm_hmm_size_2 |> 
+  unnest_wider(fit) 
+```
+```{r}
+glm_hmm_size_2 |> 
+  unnest_wider(fit) |> 
+  select(participant, recovered_weights) |> 
+  unnest(recovered_weights)
+```
+
