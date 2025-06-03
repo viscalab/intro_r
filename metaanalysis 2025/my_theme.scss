@@ -1,0 +1,12 @@
+/*-- scss:defaults --*/
+
+// Reduce base font size (default is ~40px)
+$presentation-font-size-root: 28px; // ~80% of default
+
+// Reduce heading sizes
+$presentation-heading-font-size: 1.4em;
+$presentation-h2-font-size: 1.2em;
+$presentation-h3-font-size: 1em;
+
+// Tighter line height for compact look
+$presentation-line-height: 1.3;

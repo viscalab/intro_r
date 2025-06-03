@@ -39,7 +39,7 @@ Blood pressure of 15 people taking *Reducin*
 ```{r}
 library(tidyverse)
 set.seed(999)
-n_samples <- 5 # 5000
+n_samples <-  5000
 
 y_drug <- rnorm(15, mean = 140, sd = 30)
 ```
@@ -302,7 +302,7 @@ calculate_cohen <- function(y_1, y_2) {
   
   m_1 <- mean(y_1)
   m_2 <- mean(y_2)
-  
+    
   sd_1 <- sd(y_1)
   sd_2 <- sd(y_2) 
   

@@ -52,8 +52,8 @@ proportions |>
 ## Fitting a glm
 
 ```{r}
-glm_model <- glm(response ~ duration, family = binomial(logit), 
-                                          data = dat)
+glm_model <- glm(response ~ duration, family = binomial(logit), data = dat)
+
 glm_model |> tidy()
 ```
 The log likelihood
@@ -88,8 +88,7 @@ data_matrix
 
 
 ```{r}
-glm_hmm_1 <- data_matrix |>  
-  glm_hmm_r(.num_states = 1)
+glm_hmm_1 <-  glm_hmm_r(data_matrix, .num_states = 1)
 
 glm_hmm_1
 ```

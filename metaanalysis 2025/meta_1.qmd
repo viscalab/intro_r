@@ -1,0 +1,1275 @@
+---
+title: "Introduction to the statistics of meta-analysis in R"
+author: "Daniel Linares (June 2025)"
+format: 
+  revealjs:
+    incremental: true
+    html-math-method: mathjax
+    theme: [default, my_theme.scss]
+editor: visual
+---
+## An amazing book
+
+. . .
+
+
+![](images/harrer.png)
+
+
+## Two problems of only using hypothesis testing {.title-slide}
+
+
+## A new drug to reduce blood pressure
+
+. . .
+
+Blood pressure of 15 people taking *Reducin*
+
+```{r}
+library(tidyverse)
+set.seed(999)
+n_samples <- 10000
+```
+
+```{r}
+y_drug <- rnorm(15, mean = 140, sd = 30)
+```
+
+```{r,echo=TRUE}
+y_drug
+```
+
+. . .
+
+Blood pressure of 20 people taking placebo
+
+```{r}
+y_control <- rnorm(20, mean = 160, sd = 30)
+```
+
+```{r, echo=TRUE}
+y_control
+```
+
+. . .
+
+Creating a data frame with the two groups
+```{r,echo=TRUE}
+dat_blood <- tibble(y = y_control, cond = "control") |> 
+  bind_rows(tibble(y = y_drug, cond = "drug")) 
+
+dat_blood |> slice_head(n = 5)
+```
+
+---
+
+```{r, echo=TRUE, fig.width=3, fig.height=3, fig.align='center'}
+dat_blood |> 
+  ggplot(aes(cond, y)) +
+  geom_point()
+```
+. . .
+
+Hypothesis testing
+$$H_0: \mu_{drug} = \mu_{control} \, \, \, \, \, \, H_1: \mu_{drug} \neq \mu_{control}$$
+
+. . .
+
+Which is the most standard test statistic used here?
+
+. . .
+
+```{r,echo=TRUE}
+t.test(y ~ cond, data = dat_blood)
+```
+---
+
+**Focussing only in hypothesis testing: Problem 1.**
+
+. . .
+
+We don't know whether the difference is biologically meaningful. 
+
+. . .
+
+Using a very large sample size, we might find a statistically signicant difference of 1 mmHg, which might be clinically irrelevant. 
+
+. . .
+
+<br>
+
+**Focussing only in hypothesis testing: Problem 2.**
+
+. . .
+
+After our experiment, can we recommend *Reducin*?
+
+. . .
+
+No, because we have only one study.
+
+. . .
+
+More than 50% of the studies in medicine and psychology do not replicate. 
+
+. . .
+
+<br>
+
+Study 2 finds a statistically significant difference. 
+
+. . .
+
+Study 3 finds no differences.
+
+. . .
+
+Study 4 finds a statistically significant difference.
+
+...
+
+. . .
+
+Hypothesis testing is not good to combine evidence
+
+---
+
+**Solution to problem 1: include also estimation**
+
+. . .
+
+![](images/statistical_inference.png){width=600px fig-align="center"}
+```{r}
+
+```
+
+. . .
+
+**Solution to problem 2: combine estimations of studies using meta-analysis**
+
+--- 
+
+## The typical estimators used in meta-analysis are effects sizes {.title-slide}
+
+## The problem of estimation
+
+. . .
+
+Consider that we have measure the blood pressure of all people in a country and found that it can be perfectly explain by:
+
+. . .
+
+- Normal distribution
+
+- $\mu_{control} = 160$
+
+- $\sigma_{control} = 30$
+
+
+. . .
+
+If we cannot measure the population, we would like to estimate these parameters using a sample. 
+
+. . .
+
+<br>
+
+Which is a good estimator of $\mu_{control}?$
+
+. . .
+
+```{r, echo=TRUE}
+mean(y_control)
+```
+
+
+
+## Population effect size and effect size
+
+. . .
+
+The population effect size is a parameter that compares two variables. 
+
+. . .
+
+Example: $\mu_{control} - \mu_{drug}$
+
+. . .
+
+<br>
+
+The effect size is an estimator of a population effect size
+
+. . .
+
+Which is a good estimator of $\mu_{control} - \mu_{drug}?$
+
+. . .
+
+```{r, echo=TRUE}
+mean(y_control) - mean(y_drug)
+```
+
+<br>
+
+. . .
+
+This is an example of a **unstandardized effect size.** 
+
+. . .
+
+They are recommended when the units of measurement have practical significance.
+
+. . .
+
+<br>
+
+The most typically used effect sizes in meta-analysis are **standardized effect sizes**, which don't have units. 
+
+. . .
+
+They allow the comparison of different effects: drug for reducing blood pressure with drug to reduce fever.
+
+## Families of standardized effect sizes
+
+. . . 
+
+-   Correlation family: pearson's $r$, ...
+
+-   Difference family: Cohen's $d$, Hedges' $g$, ...
+
+---
+
+## Cohen's $d$ {.title-slide}
+
+## Standardized mean difference
+
+$$\theta = \frac{\mu_{control} - \mu_{drug}}{\sigma}$$
+How many standard deviations are the populations means separated.
+
+. . .
+
+Typically, it is consider that $\sigma$ is the same in both groups. 
+
+. . .
+
+<br>
+
+Two populars estimators
+
+- Cohen's $d$
+- Hedges' $g$
+
+## Definition of Cohen's $d$
+
+. . .
+
+$$d = \frac{\overline{y}_{control} - \overline{y}_{drug}}{s}$$
+
+How many standard deviations are the means separated.
+
+. . .
+
+<br>
+
+**Assuming different variance for the two groups (not common)**
+
+$s$ is the standard deviation of the control group
+
+. . .
+
+<br>
+
+**Assuming same variance for the two groups (common)**
+
+$s$ is a weighted average of the standard deviations (pooled standard deviation)
+
+. . .
+
+$$s = \sqrt{\frac{(n_{control} -1) s_{control}^2 + (n_{drug} -1) s_{drug}^2 }{n_{control} + n_{drug} - 2}}$$
+
+## Calculating Cohen's $d$ by hand
+
+. . .
+
+```{r,echo=TRUE}
+y_drug
+```
+
+```{r, echo=TRUE}
+y_control
+```
+
+. . .
+
+<br>
+
+```{r,echo=TRUE}
+n_drug <- length(y_drug)
+n_drug
+```
+
+```{r,echo=TRUE}
+n_control <- length(y_control)
+n_control
+```
+
+. . .
+
+<br>
+
+```{r,echo=TRUE}
+m_drug <- mean(y_drug)
+m_drug
+```
+
+```{r,echo=TRUE}
+m_control <- mean(y_control)
+m_control
+```
+
+. . .
+
+---
+
+```{r,echo=TRUE}
+sd_drug <- sd(y_drug)
+sd_drug
+```
+
+```{r,echo=TRUE}
+sd_control <- sd(y_control)
+sd_control
+```
+
+. . .
+
+```{r,echo=TRUE}
+sd_pooled <- sqrt( ((n_control - 1) * sd_control^2 + (n_drug - 1) * sd_drug^2) / (n_control + n_drug - 2))
+sd_pooled
+```
+
+. . .
+
+<br>
+
+```{r,echo=TRUE}
+d <- (m_control - m_drug) / sd_pooled
+d
+```
+
+## Calculating Cohen's $d$ using `esc`
+
+```{r,echo=TRUE}
+library(esc)
+
+d_esc <- esc_mean_sd(grp1m = m_control, grp2m = m_drug, 
+                     grp1sd = sd_control, grp2sd = sd_drug, 
+                     grp1n = n_control, grp2n = n_drug)
+
+d_esc
+```
+
+<br>
+
+. . .
+
+```{r,echo=TRUE}
+d_esc$es
+```
+
+## Creating a function to calculate Cohen's $d$ from raw data
+
+. . .
+
+
+```{r,echo=TRUE}
+calculate_cohen <- function(y_1, y_2) {
+  n_1 <- length(y_1)
+  n_2 <- length(y_2)
+  
+  m_1 <- mean(y_1)
+  m_2 <- mean(y_2)
+    
+  sd_1 <- sd(y_1)
+  sd_2 <- sd(y_2) 
+  
+  d <- esc_mean_sd(grp1m = m_1, grp2m = m_2, 
+            grp1sd = sd_1, grp2sd = sd_2, 
+            grp1n = n_1, grp2n = n_2)
+  
+  d$es
+  
+}
+```
+
+<br>
+
+. . .
+
+```{r,echo=TRUE}
+calculate_cohen(y_control, y_drug)
+```
+
+##  Visualization of the overlap between the two populations
+
+| Qualitative descriptors |  d   |              Example              |
+|:-----------------------:|:----:|:---------------------------------:|
+|          Small          | 0.1  |     IQ difference birth order     |
+|         Medium          | 0.5  |Spatial suppression reduction in Scz |
+|          Large          | 0.7  |Contrast sensitivity reduction in Scz|
+|          Huge           | 1.8  | Height differences (male, female) |
+
+<br>
+
+```{r, fig.width=6, fig.height=1.25}
+crossing(d = c(.1, .5, 0.7, 1.8), 
+         x = seq(-3, 5, .01)) |> 
+  mutate(y_control = dnorm(x, mean = 0, sd = 1),
+         y_exp = dnorm(x, mean = d, sd = 1)) |> 
+  ggplot() + 
+  facet_wrap(~ d, nrow = 1) +
+  geom_line(aes(x = x, y = y_control)) +
+  geom_line(aes(x = x, y = y_exp)) +
+  theme_classic() +
+  theme(axis.line.y = element_blank(), 
+        axis.ticks = element_blank(),
+        axis.text = element_blank(), 
+        axis.title = element_blank())
+
+```
+---
+
+But, to characterize the effect of medication, a point estimate is not enough.  
+
+---
+
+## Precision of Cohen's $d$ (assuming known populations to understand the concept){.title-slide}
+
+## Generating random samples
+
+. . .
+
+```{r,echo=TRUE}
+mu_control <- 160
+mu_drug <- 140
+
+sigma <- 30
+```
+
+. . .
+
+
+We calculate the population standardized mean difference of the population
+
+. . .
+
+```{r, echo=TRUE}
+theta <- (mu_control - mu_drug) / sigma
+theta
+```
+
+. . .
+
+**Sample 1**
+
+```{r,echo=TRUE}
+y_drug_sample_1 <- rnorm(n_drug, mean = mu_drug, sd = sigma)
+y_drug_sample_1
+```
+
+. . .
+
+```{r,echo=TRUE}
+y_control_sample_1 <- rnorm(n_control, mean = mu_control, sd = sigma)
+y_control_sample_1
+```
+
+. . .
+
+```{r,echo=TRUE}
+calculate_cohen(y_control_sample_1, y_drug_sample_1)
+```
+
+---
+
+**Sample 2**
+
+. . .
+
+```{r,echo=TRUE}
+y_drug_sample_2 <- rnorm(n_drug, mean = mu_drug, sd = sigma)
+y_drug_sample_2
+```
+
+. . .
+
+```{r,echo=TRUE}
+y_control_sample_2 <- rnorm(n_control, mean = mu_control, sd = sigma)
+y_control_sample_2
+```
+
+. . .
+
+```{r,echo=TRUE}
+calculate_cohen(y_control_sample_2, y_drug_sample_2)
+```
+
+. . .
+
+**Sample 3**
+
+. . .
+
+```{r,echo=TRUE}
+y_drug_sample_3 <- rnorm(n_drug, mean = mu_drug, sd = sigma)
+y_drug_sample_3
+```
+
+. . .
+
+```{r,echo=TRUE}
+y_control_sample_3 <- rnorm(n_control, mean = mu_control, sd = sigma)
+y_control_sample_3
+```
+
+. . .
+
+```{r,echo=TRUE}
+calculate_cohen(y_control_sample_3, y_drug_sample_3)
+```
+
+---
+
+**Generating many random samples**
+
+. . .
+
+```{r,echo=TRUE}
+samples_drug <- tibble(sample = 1:n_samples) |> 
+  group_by(sample) |> 
+  reframe(y = rnorm(n_drug, mu_drug, sigma)) |> 
+  mutate(cond = "drug")
+
+samples_drug |> slice_head(n = 4)
+```
+. . .
+
+```{r,echo=TRUE}
+samples_control <- tibble(sample = 1:n_samples) |> 
+  group_by(sample) |> 
+  reframe(y = rnorm(n_control, mu_control, sigma)) |> 
+  mutate(cond = "control")
+
+samples_control |> slice_head(n = 4)
+```
+. . .
+
+```{r,echo=TRUE}
+samples <- samples_drug |> 
+  bind_rows(samples_control)
+```
+
+## Sampling distribution of Cohen's $d$
+
+. . .
+
+```{r,echo=TRUE}
+sampling_distribution_d <- samples |> 
+  group_by(sample, cond) |> 
+  nest() |> 
+  group_by(sample) |>
+  pivot_wider(names_from = cond, values_from = data) |> 
+  transmute(d = map2_dbl(drug, control, function(drug, control) {
+    calculate_cohen(control$y, drug$y)
+  }))
+  
+
+sampling_distribution_d |> ungroup() |> slice_head(n = 3)
+```
+. . .
+
+:::: {.columns}
+
+::: {.column width="40%"}
+```{r,fig.width=3, fig.height=3,fig.align='center'}
+sampling_distribution_d |> 
+  ggplot(aes(x = d)) +
+  geom_histogram(bins = 50) +
+  geom_vline(xintercept = theta, color = "red") 
+```
+:::
+
+::: {.column width="60%"}
+
+The SD of the sampling distribution of a statistic is the se
+```{r,echo=TRUE}
+sampling_distribution_d |> 
+  ungroup() |> 
+  summarise(se = sd(d))
+```
+:::
+
+::::
+
+---
+
+But, we don't have access to the populations!
+
+---
+
+## Calculating the standard error of Cohen's $d$ from the data {.title-slide}
+
+## Two solutions
+
+. . .
+
+
+
+**Using simulation**
+
+. . .
+
+We do not have the means and the standard deviation of the populations. So, we use their estimates.
+
+. . .
+
+
+**Using a formula**
+
+. . .
+
+It could be demonstrated that one good estimate of the standard error of cohen's $d$ is
+
+$$\hat{se} (d) = \sqrt{\frac{n_1+n_2}{n_1n_2}+\frac{d^2}{2(n_1+n_2)}}$$
+
+. . .
+
+```{r,echo=TRUE}
+sqrt((n_drug + n_control) / (n_drug * n_control) + d^2 / (2*(n_control + n_drug)))
+```
+
+. . .
+
+```{r,echo=TRUE}
+d_esc
+```
+
+
+---
+
+## Combining studies (fixed-effects meta-analysis) {.title-slide}
+
+## Study 1
+
+. . .
+
+```{r,echo=FALSE}
+y_1_drug <- rnorm(15, mean = 140, sd = 30)
+y_1_control <- rnorm(20, mean = 160, sd = 30)
+```
+
+```{r,echo=TRUE}
+y_1_drug
+```
+
+```{r,echo=TRUE}
+y_1_control
+```
+
+
+. . .
+
+<br>
+
+```{r,echo=TRUE}
+calculate_cohen_full <- function(y_1, y_2) {
+  n_1 <- length(y_1)
+  n_2 <- length(y_2)
+  
+  m_1 <- mean(y_1)
+  m_2 <- mean(y_2)
+    
+  sd_1 <- sd(y_1)
+  sd_2 <- sd(y_2) 
+  
+  esc_mean_sd(grp1m = m_1, grp2m = m_2, 
+            grp1sd = sd_1, grp2sd = sd_2, 
+            grp1n = n_1, grp2n = n_2) 
+  
+}
+```
+
+---
+
+```{r,echo=TRUE}
+calculate_cohen_full(y_1_control, y_1_drug)
+```
+
+. . .
+
+<br>
+
+The **Variance** is just the square of the SE.
+
+. . .
+
+The **Weight** is just the inverse of the Variance—larger values indicate larger precision.
+
+. . .
+
+The **Lower and Upper CI** are the 95% confidence intervals for the effect size. They are calculated using the SE.
+
+. . .
+
+- **Estimation** and **Hypothesis testing** are connected.
+
+- For example, in this case we will conclude that there is not evidence of an effect because the CI contains 0.
+
+## Study 2
+
+. . .
+
+```{r,echo=FALSE}
+y_2_drug <- rnorm(45, mean = 145, sd = 30)
+y_2_control <- rnorm(60, mean = 155, sd = 30)
+```
+
+```{r,echo=TRUE}
+y_2_drug
+```
+
+```{r,echo=TRUE}
+y_2_control
+```
+
+. . .
+
+```{r,echo=TRUE}
+calculate_cohen_full(y_2_control, y_2_drug)
+```
+
+## Combining studies by hand
+
+. . .
+
+```{r,echo=TRUE}
+d_study_1 <- calculate_cohen_full(y_1_control, y_1_drug)$es
+d_study_1
+```
+
+. . .
+
+```{r,echo=TRUE}
+d_study_2 <- calculate_cohen_full(y_2_control, y_2_drug)$es
+d_study_2
+```
+
+. . . 
+
+Is this OK?
+
+```{r,echo=TRUE}
+mean(c(d_study_1, d_study_2))
+```
+
+. . . 
+
+No
+
+. . .
+
+```{r,echo=TRUE}
+weight_1 <- calculate_cohen_full(y_1_control, y_1_drug)$w
+weight_1
+```
+. . .
+
+```{r,echo=TRUE}
+weight_2 <- calculate_cohen_full(y_2_control, y_2_drug)$w
+weight_2
+```
+
+---
+
+. . .
+
+```{r,echo=TRUE}
+proportion_contribution_1 <- weight_1 / (weight_1 + weight_2)
+
+proportion_contribution_1
+```
+
+. . .
+
+```{r,echo=TRUE}
+proportion_contribution_2 <- weight_2 / (weight_1 + weight_2)
+
+proportion_contribution_2
+```
+
+. . .
+
+<br>
+
+Combined effect size:
+
+```{r,echo=TRUE}
+proportion_contribution_1 * d_study_1 + proportion_contribution_2 * d_study_2
+```
+
+## Combining studies using `meta`
+
+. . .
+
+```{r,echo=TRUE}
+study_1 <- calculate_cohen_full(y_1_control, y_1_drug) |> 
+  as_tibble() |> 
+  mutate(study = "Perico et al. 1980")
+
+study_1
+```
+
+. . .
+
+<br> 
+
+```{r,echo=TRUE}
+study_2 <- calculate_cohen_full(y_2_control, y_2_drug) |> 
+  as_tibble() |> 
+  mutate(study = "Palotes et al. 1990")
+  
+
+study_2
+```
+
+. . .
+
+<br> 
+
+:::: {.columns}
+
+::: {.column width="40%"}
+```{r,echo=TRUE}
+studies <- study_1 |> 
+  bind_rows(study_2) |> 
+  select(study, es, se)
+
+```
+:::
+
+::: {.column width="60%"}
+```{r,echo=TRUE}
+studies
+```
+:::
+
+::::
+
+---
+
+. . .
+
+```{r,echo=TRUE}
+library(meta)
+
+our_meta <- metagen(TE = es, seTE = se, studlab = study, 
+                    common = TRUE, 
+                    random = FALSE, 
+                    data = studies)
+
+our_meta
+```
+. . .
+
+<br>
+
+---
+
+```{r,echo=TRUE}
+forest(our_meta)
+```
+
+## Example contrast sensitivity deficits
+
+![](images/forest_contrast.png){width=300px fig-align="center"}
+
+---
+
+. . .
+
+The assumption is that all the studies are measuring the same population, which has a population effect size of $\theta$.
+
+. . .
+
+The population effect size from Study 1 is $\theta_1$, which is equal to $\theta$.
+
+. . .
+
+The population effect size from Study 2 is $\theta_2$, which is equal to $\theta$.
+
+. . .
+
+$$\cdots$$
+
+. . .
+
+$d_1$, $d_2$, ... are different because of sampling variability.
+
+$$d_k = \theta + \epsilon_k$$
+
+. . .
+
+---
+
+## Combining studies (random-effects meta-analysis) {.title-slide}
+
+---
+
+. . .
+
+It is not assumed that the studies are measuring the same population (this is more realistic in many cases).
+
+-   Maybe the treatment between studies is slightly different.
+-   The people have different ages.
+-   ...
+
+. . .
+
+$$d_k = \theta_k + \epsilon_k$$
+
+. . .
+
+The aim is to estimate the mean across $\theta_k$.
+
+---
+
+```{r,echo=TRUE}
+metagen(TE = es, seTE = se, studlab = study, 
+                    common = FALSE, 
+                    random = TRUE, 
+                    data = studies)
+
+```
+
+---
+
+## The difficult part ($d$ and $se$ from each study) {.title-slide}
+
+## Raw data
+
+. . .
+
+The authors share the data (increasingly common).
+
+. . .
+
+Asking the authors for the data.
+
+. . .
+
+Scraping the data points from the graphs.
+
+. . .
+
+<br>
+
+```{r,eval=FALSE,echo=TRUE}
+calculate_cohen_full(y_1, y_2)
+```
+
+
+
+## Means, the standards deviations and samples size
+
+. . .
+
+<br>
+
+```{r,eval=FALSE,echo=TRUE}
+esc_mean_sd(grp1m = mean_1, grp2m = mean_2, 
+            grp1sd = sd_1, grp2sd = sd_2, 
+            grp1n = n_1, grp2n = n_2, 
+            es.type = "g")
+```
+
+. . .
+
+Very often data scrapping from graphs is needed. 
+
+. . . 
+
+<br>
+
+If the SE is provided:
+
+```{r,eval=FALSE,echo=TRUE}
+sd <-  se * sqrt(n)
+```
+
+. . . 
+
+<br>
+
+
+If the CI is provided:
+
+```{r,eval=FALSE,echo=TRUE}
+se <- (upper - lower) / (2 * qt(.975, df = n - 1))
+sd <-  se * sqrt(n)
+```
+
+
+
+## From the results of a t-test (independent samples)
+
+. . .
+
+<br>
+
+**From the value of the t-statistic**
+
+```{r,eval=FALSE,echo=TRUE}
+esc_t(t = t_statistic, grp1n = n_1, grp2n = n_2, es.type = "d")
+```
+
+. . .
+
+<br>
+
+**From the value of the p-value**
+
+```{r,eval=FALSE,echo=TRUE}
+esc_t(p = p_value, grp1n = n_1, grp2n = n_2, es.type = "d")
+```
+
+
+---
+
+
+**Intuition of why we can calculate $d$ from $t$**
+
+. . .
+
+To simplify, let's consider the case in which $n_1 = n_2 = n$
+
+. . .
+
+$$d = \frac{\overline{y}_{control} - \overline{y}_{drug}}{s}$$
+
+. . .
+
+but $s = se \sqrt{n}$
+
+. . .
+
+$$d = \frac{\overline{y}_{control} - \overline{y}_{drug}}{se \sqrt{n}}$$
+
+. . .
+
+$$d = \frac{t}{\sqrt{n}}$$
+
+. . .
+
+or
+
+$$t = d \, {\sqrt{n}}$$
+
+----
+
+## Important topics {.title-slide}
+
+## Publication bias
+
+
+![](images/publication_bias.png){width=300px fig-align="center"}
+
+. . .
+
+```{r,echo=TRUE,eval=FALSE}
+library(dmetar)
+
+eggers.test(our_meta)
+```
+## Heterogeneity
+
+![](images/forest_contrast.png){width=300px fig-align="center"}
+
+## Dependent measurements
+
+![](images/dependent_contrast.jpeg)
+. . .
+
+<br>
+
+Three-level random-effects models
+
+. . .
+
+<br>
+
+Correlated and Hierarchical Effects
+
+---
+
+## Hedges' $g$ {.title-slide}
+
+## Cohen's $d$ is biased
+
+. . .
+
+```{r,echo=TRUE}
+theta 
+```
+
+. . .
+
+:::: {.columns}
+
+::: {.column width="60%"}
+```{r,fig.width=6, fig.height=3,fig.align='center'}
+sampling_distribution_d |> 
+  ggplot(aes(x = d)) +
+  geom_histogram(bins = 50) +
+  geom_vline(xintercept = theta, color = "red") +
+    geom_vline(data = sampling_distribution_d |> 
+               ungroup() |> 
+               summarise(m = mean(d)), 
+             aes(xintercept = m), lty = 2, color = "white")
+```
+:::
+
+::: {.column width="40%"}
+
+The SD of the sampling distribution of a statistic is the se
+```{r,echo=TRUE}
+sampling_distribution_d |> 
+  ungroup() |> 
+  summarise(se = sd(d), 
+            m = mean(d))
+```
+:::
+
+::::
+
+. . .
+
+$$bias = E[\hat{\theta}] - \theta$$
+$$bias = E[d] - \theta$$
+
+## Definition of Hedges' $g$ 
+
+. . .
+
+$$g = \left( 1- \frac{3}{4 (n_{control} + n_{drug}) - 9}\right) \frac{\overline{y}_{control} - \overline{y}_{drug}}{s}$$
+
+. . .
+
+$$g = \left( 1- \frac{3}{4 (n_{control} + n_{drug}) - 9}\right) d$$
+
+. . .
+
+
+For large n, $g = d$
+
+<br>
+
+. . .
+
+```{r,echo=TRUE}
+d
+```
+
+. . .
+
+```{r,echo=TRUE}
+g <- (1 - 4 / (4 * (n_control + n_drug) - 9)) * d 
+g
+```
+
+. . .
+
+The formula is an approximation
+
+## Calculation using `esc`
+
+
+```{r,echo=TRUE}
+esc_mean_sd(grp1m = m_control, grp2m = m_drug, 
+            grp1sd = sd_control, grp2sd = sd_drug, 
+            grp1n = n_control, grp2n = n_drug, 
+            es.type = "g")
+```
+
+## Sampling distribution of $g$
+
+```{r}
+calculate_hedges <- function(y_1, y_2) {
+  n_1 <- length(y_1)
+  n_2 <- length(y_2)
+  
+  m_1 <- mean(y_1)
+  m_2 <- mean(y_2)
+    
+  sd_1 <- sd(y_1)
+  sd_2 <- sd(y_2) 
+  
+  g <- esc_mean_sd(grp1m = m_1, grp2m = m_2, 
+            grp1sd = sd_1, grp2sd = sd_2, 
+            grp1n = n_1, grp2n = n_2, es.type = "g")
+  
+  g$es
+  
+}
+
+sampling_distribution_g <- samples |> 
+  group_by(sample, cond) |> 
+  nest() |> 
+  group_by(sample) |>
+  pivot_wider(names_from = cond, values_from = data) |> 
+  transmute(g = map2_dbl(drug, control, function(drug, control) {
+    calculate_hedges(control$y, drug$y)
+  }))
+
+```
+
+. . .
+
+:::: {.columns}
+
+::: {.column width="60%"}
+```{r,fig.width=6, fig.height=3,fig.align='center'}
+sampling_distribution_g |> 
+  ggplot(aes(x = g)) +
+  geom_histogram(bins = 50) +
+  geom_vline(xintercept = theta, color = "red") +
+  geom_vline(data = sampling_distribution_g |> 
+               ungroup() |> 
+               summarise(se = sd(g), 
+                         m = mean(g)), 
+             aes(xintercept = m), lty = 2, color = "white")
+```
+:::
+
+::: {.column width="40%"}
+
+```{r,echo=TRUE}
+sampling_distribution_g |> 
+  ungroup() |> 
+  summarise(se = sd(g), 
+            m = mean(g))
+```
+:::
+
+::::
+
+. . .
+
+Hedges' $g$ is unbiased
+
+--- 
+
+## End {.title-slide}
+
+
+
